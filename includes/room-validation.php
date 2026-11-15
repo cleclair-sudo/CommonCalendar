@@ -240,7 +240,7 @@ function calsys_lock_linked_room_ids($source_type, $source_id, $new_room_id = 0)
 }
 
 /** Reconciles linked room reservations with the current source schedule. */
-function calsys_sync_linked_room_reservations($source_type, $source_id, $room_id, $starts_at, $ends_at, $allow_conflict = false) {
+function calsys_sync_linked_room_reservations($source_type, $source_id, $room_id, $starts_at, $ends_at, $allow_conflict, $staff_initials) {
     global $wpdb;
     $bookings_table = calsys_table('bookings');
     if ($wpdb->delete($bookings_table, array('source_type' => $source_type, 'source_id' => $source_id), array('%s', '%d')) === false) {
@@ -274,8 +274,9 @@ function calsys_sync_linked_room_reservations($source_type, $source_id, $room_id
             'status' => 'approved',
             'source_type' => $source_type,
             'source_id' => $source_id,
+            'staff_initials' => $staff_initials,
             'created_at' => current_time('mysql'),
-        ), array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s'));
+        ), array('%d', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'));
         if ($inserted === false) {
             return false;
         }

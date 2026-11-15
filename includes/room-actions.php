@@ -50,6 +50,10 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
             $frontend ? 'calsys_front_staff_booking' : 'calsys_staff_booking',
             $frontend ? '_wpnonce_booking' : '_wpnonce'
         );
+        $staff_initials = calsys_validate_staff_initials($_POST['staff_initials'] ?? null);
+        if ($staff_initials === false) {
+            calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+        }
     } else {
         check_admin_referer('calsys_request_room');
     }
@@ -123,6 +127,9 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         'starts_at' => $booking['start'],
         'ends_at' => $booking['end'],
     );
+    if ($staff_booking) {
+        $booking_data['staff_initials'] = $staff_initials;
+    }
     if ($staff_booking && !$booking_id) {
         $booking_data['source_type'] = 'private';
         $booking_data['source_id'] = 0;
@@ -264,8 +271,13 @@ add_action('admin_post_nopriv_calsys_request_room', 'calsys_public_room_booking'
 
 /** Emails a public room requester about a staff decision or cancellation. */
 function calsys_notify_room_status($booking, $status, $comment = '') {
-    if (($booking->source_type ?? '') !== '' || !is_email($booking->requester_email ?? '')) {
+    $source_type = $booking->source_type ?? '';
+    if ($source_type !== '' && !($status === 'cancelled' && $source_type === 'private')) {
         return true;
+    }
+    if (!is_email($booking->requester_email ?? '')) {
+        error_log('CommonsCal: a room notification recipient has no valid email address.');
+        return false;
     }
     $subjects = array(
         'approved' => __('Your room request was approved', 'community-calendar-study-rooms'),
@@ -290,7 +302,7 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
             $booking->starts_at,
             $booking->ends_at
         );
-    if ($comment !== '') {
+    if ($comment !== '' && $status !== 'cancelled') {
         $message .= "\n\n" . __('Staff comment:', 'community-calendar-study-rooms') . "\n" . $comment;
     }
     return calsys_send_email($booking->requester_email, $subjects[$status], $message, 'room_' . $status,
@@ -358,7 +370,8 @@ function calsys_front_delete_room_booking() {
     calsys_require_staff();
     check_admin_referer('calsys_front_delete_room_booking');
     $booking_id = absint($_POST['booking_id'] ?? 0);
-    if (!$booking_id) {
+    $comment = calsys_cancellation_comment($_POST['cancellation_comment'] ?? '');
+    if (!$booking_id || $comment === false) {
         calsys_frontend_redirect('invalid_room_request');
     }
 
@@ -402,6 +415,6 @@ function calsys_front_delete_room_booking() {
         $wpdb->query('ROLLBACK');
         calsys_frontend_redirect('invalid_room_request');
     }
-    calsys_frontend_redirect(calsys_notify_room_status($booking, 'cancelled') ? 'room_booking_deleted' : 'room_cancel_email_failed');
+    calsys_frontend_redirect(calsys_notify_room_status($booking, 'cancelled', $comment) ? 'room_booking_deleted' : 'room_cancel_email_failed');
 }
 add_action('admin_post_calsys_front_delete_room_booking', 'calsys_front_delete_room_booking');

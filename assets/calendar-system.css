@@ -334,7 +334,8 @@
     font-weight: 400;
 }
 
-.calsys-category-filter-actions button {
+.calsys-category-filter-actions button,
+.calsys-print-actions button {
     background: var(--calsys-accent, #1d5f8a);
     border: 1px solid var(--calsys-accent, #1d5f8a);
     border-radius: 0.35rem;
@@ -342,8 +343,17 @@
     cursor: pointer;
     font: inherit;
     font-weight: 650;
-    font-size: 0.9rem;
-    padding: 0.35rem 0.7rem;
+    font-size: 0.85rem;
+    line-height: 1.2;
+    min-height: 2rem;
+    padding: 0.3rem 0.6rem;
+    width: auto;
+}
+
+.calsys-category-filter-actions button:focus-visible,
+.calsys-print-actions button:focus-visible {
+    outline: 3px solid #f0ad4e;
+    outline-offset: 2px;
 }
 
 .calsys-category-filter-actions a {
@@ -576,6 +586,10 @@
 
 .calsys-calendar-entry-detail {
     font-size: 0.9em;
+}
+
+.calsys-calendar-entry.is-event .calsys-calendar-entry-detail {
+    display: block;
 }
 
 .calsys-weekday-long {
@@ -1038,6 +1052,24 @@
     padding-top: 0.75rem;
 }
 
+.calsys-delete-form label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.calsys-delete-form textarea {
+    border: 1px solid #bcc6d0;
+    border-radius: 0.2rem;
+    box-sizing: border-box;
+    display: block;
+    font: inherit;
+    margin-top: 0.35rem;
+    max-width: 100%;
+    padding: 0.5rem;
+    width: 100%;
+}
+
 .calsys-delete-button {
     background: #a32929 !important;
     border: 0;
@@ -1076,6 +1108,39 @@
     background: #f3f7fa;
     margin: 0 0 1rem;
     padding: 0.75rem 1rem;
+}
+
+.calsys-result-dialog {
+    max-width: min(32rem, calc(100vw - 2rem));
+}
+
+.calsys-result-dialog .calsys-action-card {
+    padding: 1.5rem;
+}
+
+.calsys-result-dialog h2 {
+    margin: 0 0 1rem;
+}
+
+.calsys-result-dialog .calsys-notice {
+    overflow-wrap: anywhere;
+}
+
+.calsys-result-close {
+    background: var(--calsys-accent, #1d5f8a);
+    border: 0;
+    border-radius: 0.25rem;
+    color: #fff;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 600;
+    min-height: 2.75rem;
+    padding: 0.6rem 1rem;
+}
+
+.calsys-result-close:focus-visible {
+    outline: 2px solid var(--calsys-accent, #1d5f8a);
+    outline-offset: 3px;
 }
 
 .calsys-admin-form {
@@ -1149,17 +1214,6 @@
         padding: 0.3rem 0.6rem;
         font-size: 0.85rem;
         gap: 0.3rem;
-    }
-
-    .calsys-category-filter-actions {
-        flex-direction: column;
-        gap: 0.4rem;
-    }
-
-    .calsys-category-filter-actions button,
-    .calsys-category-filter-actions a {
-        width: 100%;
-        text-align: center;
     }
 
     .calsys-public-calendar .calsys-calendar-table,

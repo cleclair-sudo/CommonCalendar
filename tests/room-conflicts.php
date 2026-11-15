@@ -21,6 +21,11 @@ function calsys_require_staff() { if (!$GLOBALS['staff_authorized']) { throw new
 function check_admin_referer() {}
 function absint($value) { return abs((int) $value); }
 function wp_unslash($value) { return $value; }
+function calsys_validate_staff_initials($value) {
+    if (!is_string($value)) { return false; }
+    $value = trim(strip_tags($value));
+    return $value !== '' && strlen($value) <= 40 ? $value : false;
+}
 function sanitize_textarea_field($value) { return $value; }
 function current_time($format) { return '2026-11-11 12:00:00'; }
 function calsys_posted_equipment() { return array(); }
@@ -42,7 +47,7 @@ require __DIR__ . '/../includes/room-actions.php';
 $wpdb = new BookingDatabase();
 $staff_authorized = true;
 $conflict = true;
-$_POST = array('room_id' => '1');
+$_POST = array('room_id' => '1', 'staff_initials' => 'AB');
 try { calsys_save_booking(true); expect(false, 'Expected staff conflict redirect'); } catch (BookingRedirect $result) {
     expect($result->notice === 'room_conflict' && !$wpdb->inserted, 'Staff conflict must require acknowledgment');
 }
@@ -54,7 +59,7 @@ try { calsys_save_booking(true); expect(false, 'Expected staff success redirect'
     expect($result->notice === 'booking_saved' && count($wpdb->inserted) === 1, 'Acknowledged staff double booking was not saved');
 }
 $conflict = false;
-$_POST = array('booking_id' => '17', 'room_id' => '1');
+$_POST = array('booking_id' => '17', 'room_id' => '1', 'staff_initials' => 'CD');
 try { calsys_save_booking(true, true); expect(false, 'Expected edit success redirect'); } catch (BookingRedirect $result) {
     expect($result->notice === 'room_booking_saved' && !array_key_exists('source_type', $wpdb->updated), 'Editing a public pending request must preserve its source for decision emails');
 }

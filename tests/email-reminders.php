@@ -137,6 +137,7 @@ $email_settings['logo_placement'] = $bottom ? 'bottom' : 'top';
 $email_settings['templates']['event_reminder'] = array('subject' => 'Soon: {event}', 'body' => "Hi {name}\n{datetime}");
 $email_settings['templates']['event_registration'] = array('subject' => 'Booked: {event}', 'body' => 'Hello {name}, {datetime}');
 $email_settings['templates']['room_approved'] = array('subject' => 'Approved: {room}', 'body' => "Hi {name}\n{comment}");
+$email_settings['templates']['room_cancelled'] = array('subject' => 'Cancelled: {room}', 'body' => "{message}\n{comment}");
 $options = array('admin_email' => 'staff@example.org', 'date_format' => 'Y-m-d', 'time_format' => 'H:i',
     'calsys_settings' => array('email_settings' => $email_settings, 'notifications' => array('email_event_reminders' => $disabled ? 0 : 1)));
 $scheduled = array();
@@ -200,6 +201,14 @@ expect(calsys_send_email('person@example.org', 'Default subject', 'Default body'
     array('name' => 'Pat', 'event' => 'Book club', 'datetime' => 'December 1, 10:00')), 'Registration confirmation must be sent');
 expect($mail[4]['subject'] === 'Booked: Book club' && strpos($mail[4]['body'], 'Hello Pat, December 1, 10:00') !== false &&
     in_array('From: calendar@example.org', $mail[4]['headers'], true), 'Registration confirmation must use its template and configured sender');
+expect(calsys_send_email('person@example.org', 'Cancelled', 'The event was cancelled.', 'event_cancelled',
+    array('comment' => 'Please check back')), 'Default cancellation template must send');
+expect(substr_count($mail[5]['body'], 'Please check back') === 1 && strpos($mail[5]['body'], 'The event was cancelled.') !== false,
+    'The default cancellation template must include the details and staff message once');
+expect(calsys_send_email('person@example.org', 'Cancelled', 'The room was cancelled.', 'room_cancelled',
+    array('room' => 'Blue room', 'comment' => 'Please check back')), 'Customized cancellation template must send');
+expect(substr_count($mail[6]['body'], 'Please check back') === 1 && strpos($mail[6]['body'], 'The room was cancelled.') !== false,
+    'Using both message and comment placeholders must not duplicate the staff message');
 $mail_succeeds = false;
 try {
     calsys_test_email();

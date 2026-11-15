@@ -375,6 +375,44 @@
         }
     }
 
+    // Enhances the first result notice while keeping an inline fallback without JavaScript.
+    function showResultNotice() {
+        var notices = document.querySelectorAll('[data-calsys-result-notice]');
+        if (!notices.length) {
+            return;
+        }
+        var notice = notices[0];
+        var dialog = document.createElement('dialog');
+        dialog.className = 'calsys-modal calsys-result-dialog';
+        dialog.setAttribute('aria-label', notice.dataset.calsysNoticeTitle);
+        var card = document.createElement('section');
+        card.className = 'calsys-action-card';
+        var heading = document.createElement('h2');
+        heading.textContent = notice.dataset.calsysNoticeTitle;
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'calsys-result-close';
+        button.textContent = notice.dataset.calsysNoticeClose;
+        button.addEventListener('click', function () { closeDialog(dialog); });
+        dialog.addEventListener('close', function () { dialog.classList.remove('is-open'); });
+        dialog.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeDialog(dialog);
+            }
+        });
+        card.appendChild(heading);
+        card.appendChild(button);
+        dialog.appendChild(card);
+        notice.parentNode.insertBefore(dialog, notice);
+        openDialog(dialog);
+        card.insertBefore(notice, button);
+        for (var i = 1; i < notices.length; i++) {
+            notices[i].hidden = true;
+        }
+        button.focus();
+    }
+
     // Opens the event editor belonging to a calendar widget.
     function openEventDialog(widget) {
         openDialog(widget.querySelector('.calsys-event-dialog'));
@@ -410,6 +448,7 @@
         setValue(form, 'event_id', '0');
         var deleteForm = widget.querySelector('[data-calsys-delete-event-form]');
         if (deleteForm) {
+            deleteForm.reset();
             deleteForm.hidden = true;
             setValue(deleteForm, 'event_id', '0');
         }
@@ -543,6 +582,10 @@
         }
         form.reset();
         setValue(form, 'entry_id', '0');
+        var savedInitials = form.querySelector('[data-calsys-saved-initials]');
+        if (savedInitials) {
+            savedInitials.textContent = '';
+        }
         var deleteForm = widget.querySelector('[data-calsys-delete-staff-form]');
         if (deleteForm) {
             deleteForm.hidden = true;
@@ -567,6 +610,10 @@
             return null;
         }
         form.reset();
+        var savedInitials = form.querySelector('[data-calsys-saved-initials]');
+        if (savedInitials) {
+            savedInitials.textContent = '';
+        }
         form._calsysAvailabilityRequest = (form._calsysAvailabilityRequest || 0) + 1;
         var availability = form.querySelector('[data-calsys-availability]');
         if (availability) {
@@ -584,6 +631,7 @@
         setValue(form, 'booking_id', '0');
         var deleteForm = widget.querySelector('[data-calsys-delete-room-booking-form]');
         if (deleteForm) {
+            deleteForm.reset();
             deleteForm.hidden = true;
             setValue(deleteForm, 'booking_id', '0');
         }
@@ -751,6 +799,10 @@
                 setValue(editRoomForm, 'ends_at', button.dataset.end);
                 setValue(editRoomForm, 'requester_name', button.dataset.name);
                 setValue(editRoomForm, 'requester_email', button.dataset.email);
+                var roomSavedInitials = editRoomForm.querySelector('[data-calsys-saved-initials]');
+                if (roomSavedInitials && button.dataset.staffInitials) {
+                    roomSavedInitials.textContent = (labels.lastSavedBy || 'Last saved by: %s').replace('%s', button.dataset.staffInitials);
+                }
                 setEquipment(editRoomForm, button.dataset.equipment);
                 updateRoomAvailability(editRoomForm);
                 var roomHeading = widget.querySelector('.calsys-room-request h2');
@@ -765,6 +817,10 @@
                 if (roomDeleteForm) {
                     roomDeleteForm.hidden = false;
                     setValue(roomDeleteForm, 'booking_id', button.dataset.bookingId);
+                    var cancellationMessage = roomDeleteForm.querySelector('[data-calsys-room-cancellation-message]');
+                    if (cancellationMessage) {
+                        cancellationMessage.hidden = button.dataset.sourceType === 'staff';
+                    }
                 }
                 openRoomDialog(widget);
             }
@@ -882,6 +938,10 @@
                     staffSaveButton.textContent = labels.saveChanges || 'Save changes';
                 }
                 setValue(editStaffForm, 'title', button.dataset.title);
+                var staffSavedInitials = editStaffForm.querySelector('[data-calsys-saved-initials]');
+                if (staffSavedInitials && button.dataset.staffInitials) {
+                    staffSavedInitials.textContent = (labels.lastSavedBy || 'Last saved by: %s').replace('%s', button.dataset.staffInitials);
+                }
                 setEquipment(editStaffForm, button.dataset.equipment);
                 setValue(editStaffForm, 'entry_type', button.dataset.entryType);
                 setValue(editStaffForm, 'starts_at', button.dataset.start);
@@ -983,4 +1043,9 @@
         document.querySelectorAll('[data-calsys-room-availability]').forEach(updateRoomAvailability);
     });
     initializeFormControls(document);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', showResultNotice);
+    } else {
+        showResultNotice();
+    }
 })();

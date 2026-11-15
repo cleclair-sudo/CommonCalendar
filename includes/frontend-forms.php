@@ -182,8 +182,9 @@ function calsys_front_event_form() {
                 <?php wp_nonce_field('calsys_front_delete_event'); ?>
                 <input type="hidden" name="action" value="calsys_front_delete_event">
                 <input type="hidden" name="event_id" value="0">
+                <label><?php esc_html_e('Message to registered and waitlisted attendees (optional)', 'community-calendar-study-rooms'); ?><textarea name="cancellation_comment" rows="3" maxlength="4000"></textarea></label>
                 <button class="calsys-delete-button" type="submit"><?php esc_html_e('Delete event', 'community-calendar-study-rooms'); ?></button>
-                <p><?php esc_html_e('Deleting this event also deletes its registrations and linked room reservation.', 'community-calendar-study-rooms'); ?></p>
+                <p><?php esc_html_e('Deleting this event also deletes its registrations and linked room reservation. Attendees are emailed if the event has not ended.', 'community-calendar-study-rooms'); ?></p>
             </form>
         </section>
     </dialog>
@@ -216,6 +217,7 @@ function calsys_front_staff_form() {
                 <input type="hidden" name="entry_id" value="0">
                 <div class="calsys-form-grid">
                     <p><label><?php esc_html_e('Title', 'community-calendar-study-rooms'); ?><input name="title" type="text" maxlength="200" required></label></p>
+                    <p><label><?php esc_html_e('Your initials', 'community-calendar-study-rooms'); ?><input name="staff_initials" type="text" maxlength="10" required></label><span data-calsys-saved-initials></span></p>
                     <p><label><?php esc_html_e('Type', 'community-calendar-study-rooms'); ?><select name="entry_type"><?php foreach ($types as $key => $label) : ?><option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></p>
                     <p><label><?php esc_html_e('Starts', 'community-calendar-study-rooms'); ?><input name="starts_at" type="datetime-local" required></label></p>
                     <p><label><?php esc_html_e('Ends', 'community-calendar-study-rooms'); ?><input name="ends_at" type="datetime-local" required></label></p>
@@ -337,6 +339,7 @@ function calsys_front_room_form() {
                 <div class="calsys-form-grid">
                 <?php if ($staff_booking) : ?>
                     <p class="calsys-form-wide"><label class="calsys-checkbox-label"><input name="public_event" type="checkbox" value="1" data-calsys-toggle-public-event> <?php esc_html_e('Public event (visible on the public calendar)', 'community-calendar-study-rooms'); ?></label></p>
+                    <p><label><?php esc_html_e('Your initials', 'community-calendar-study-rooms'); ?><input name="staff_initials" type="text" maxlength="10" required></label><span data-calsys-saved-initials></span></p>
                 <?php endif; ?>
                 <p class="calsys-form-wide"><label><?php esc_html_e('Room', 'community-calendar-study-rooms'); ?><select name="room_id" required><option value=""><?php esc_html_e('Choose a room', 'community-calendar-study-rooms'); ?></option><?php foreach ($rooms as $room) : ?><option value="<?php echo esc_attr($room->id); ?>"><?php echo esc_html($room->name . ' (' . sprintf(_n('%d person', '%d people', (int) $room->capacity, 'community-calendar-study-rooms'), (int) $room->capacity) . ')'); ?></option><?php endforeach; ?></select></label></p>
                 <p><label><?php esc_html_e('Date', 'community-calendar-study-rooms'); ?><input name="booking_date" type="date" min="<?php echo esc_attr(current_time('Y-m-d')); ?>" <?php if ($latest_booking_date !== '') : ?>max="<?php echo esc_attr($latest_booking_date); ?>"<?php endif; ?> required></label></p>
@@ -362,7 +365,6 @@ function calsys_front_room_form() {
                         <h3><?php esc_html_e('Public event details', 'community-calendar-study-rooms'); ?></h3>
                         <div class="calsys-form-grid">
                             <p class="calsys-form-wide"><label><?php esc_html_e('Event title', 'community-calendar-study-rooms'); ?><input name="title" type="text" maxlength="200" required></label></p>
-                            <p><label><?php esc_html_e('Your initials', 'community-calendar-study-rooms'); ?><input name="staff_initials" type="text" maxlength="10" required></label></p>
                             <p><label><?php esc_html_e('Category', 'community-calendar-study-rooms'); ?><select name="category"><?php foreach (calsys_event_categories() as $key => $category_data) : 
                                 $label = is_array($category_data) ? ($category_data['label'] ?? '') : $category_data;
                                 ?><option value="<?php echo esc_attr($key); ?>" <?php selected($key, 'adult'); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></p>
@@ -430,6 +432,10 @@ function calsys_front_room_form() {
                 <input type="hidden" name="action" value="calsys_front_delete_room_booking">
                 <input type="hidden" name="booking_id" value="0">
                 <input type="hidden" name="calsys_frontend" value="1">
+                <div data-calsys-room-cancellation-message>
+                    <label><?php esc_html_e('Message to the room contact (optional)', 'community-calendar-study-rooms'); ?><textarea name="cancellation_comment" rows="3" maxlength="4000"></textarea></label>
+                    <p><?php esc_html_e('The room contact will be emailed when a public or private booking is cancelled.', 'community-calendar-study-rooms'); ?></p>
+                </div>
                 <button class="calsys-delete-button" type="submit"><?php esc_html_e('Delete room booking', 'community-calendar-study-rooms'); ?></button>
             </form>
         <?php endif; ?>

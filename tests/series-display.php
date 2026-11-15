@@ -52,9 +52,18 @@ expect(substr_count($html, '<details class="calsys-series-selection">') === 1 &&
     strpos($html, 'Different questions') !== false && strpos($html, 'Past') !== false, 'One series dropdown must list all published events and escape names');
 expect(strpos($html, 'name="series_events[]" value="2"') !== false && strpos($html, 'name="series_events[]" value="3"') === false && strpos($html, 'name="series_events[]" value="4"') === false, 'Only open events with matching questions must be selectable');
 expect(strpos($html, '<form ') < strpos($html, '<details class="calsys-series-selection">') &&
-    strpos($html, 'This event') !== false && substr_count($html, 'Not available for combined registration') === 2, 'The series dropdown must be in the form and identify the current and ineligible events');
+    strpos($html, 'This event (required)') !== false && substr_count($html, 'Not available for combined registration') === 2, 'The series dropdown must be in the form and identify the current and ineligible events');
+expect((bool) preg_match('/<label class="calsys-checkbox-label"><input type="checkbox" checked disabled><span><strong>First<\/strong>.*?This event \(required\)/s', $html) &&
+    strpos($html, 'name="series_events[]" value="1"') === false, 'The current event must appear checked and locked without being submitted as an additional event');
 expect(strpos($html, 'data-calsys-select-series-events') !== false && strpos($html, 'name="all_recurrences"') !== false, 'Select all and recurrence registration controls are missing');
 expect(strpos($html, 'name="reminder_opt_in"') === false, 'The global reminder switch must hide the opt-in when disabled');
+$anchor->capacity = 1;
+$anchor->registration_count = 1;
+$html = calsys_render_event_registration_forms(array($anchor));
+expect(strpos($html, 'name="join_waitlist" value="1"') !== false &&
+    strpos($html, '<input type="checkbox" checked disabled>') !== false, 'The current event must remain selected when joining its waitlist');
+$anchor->capacity = 0;
+$anchor->registration_count = 0;
 $reminders_enabled = true;
 expect(strpos(calsys_render_event_registration_forms(array($anchor)), 'name="reminder_opt_in"') !== false, 'The global reminder switch must show the opt-in when enabled');
 $reminders_enabled = false;
@@ -63,7 +72,8 @@ expect(strpos(calsys_render_event_registration_forms(array($anchor)), 'name="all
 $anchor->registration_enabled = 0;
 $html = calsys_render_event_registration_forms(array($anchor));
 expect(substr_count($html, '<details class="calsys-series-selection">') === 1 && strpos($html, 'Different questions') !== false &&
-    strpos($html, 'name="series_events[]"') === false && strpos($html, '<form ') === false, 'Series events must remain visible without registration controls when registration is disabled');
+    strpos($html, 'name="series_events[]"') === false && strpos($html, '<input type="checkbox" checked disabled>') === false &&
+    strpos($html, '<form ') === false, 'Series events must remain visible without registration controls when registration is disabled');
 $anchor->registration_enabled = 1;
 $anchor->starts_at = '2026-10-01 10:00:00';
 $html = calsys_render_event_registration_forms(array($anchor));
@@ -83,9 +93,18 @@ $results = array(
 );
 $notice = calsys_public_notice();
 expect(strpos($notice, 'First &lt;event&gt;') !== false && strpos($notice, 'Registered; confirmation email failed') !== false && strpos($notice, 'Full; not registered') !== false, 'Per-event results must distinguish a saved registration from email failure');
+$popup = calsys_public_notice(true);
+expect(strpos($popup, 'data-calsys-result-notice') !== false && strpos($popup, 'First &lt;event&gt;') !== false &&
+    strpos($popup, '<ul>') !== false && strpos($notice, 'data-calsys-result-notice') === false, 'Frontend multi-event results must support a popup while admin notices stay inline');
 $_GET = array('calsys_notice' => 'registration_email_failed');
 expect(strpos(calsys_public_notice(), 'registration is complete') !== false && strpos(calsys_public_notice(), 'could not send') !== false, 'Single-event email failure must show that registration was saved');
 $_GET = array('calsys_notice' => 'registration_results', 'calsys_registration_result' => '00000000-0000-4000-8000-000000000001');
 unset($results);
-expect(strpos(calsys_public_notice(), 'expired') !== false, 'Expired results must not look like a successful registration');
+expect(strpos(calsys_public_notice(true), 'expired') !== false && strpos(calsys_public_notice(true), 'data-calsys-result-notice') !== false, 'Expired results must appear as an error popup');
+$_GET = array('calsys_notice' => 'room_request_sent');
+$notice = calsys_public_notice(true);
+expect(strpos($notice, 'We have received your room request. We will be in touch by email, please remember to check your junk folder.') !== false &&
+    strpos($notice, 'data-calsys-result-notice') !== false, 'Room request confirmation must show the requested message');
+$_GET = array('calsys_notice' => 'unknown');
+expect(calsys_public_notice(true) === '', 'Unknown notices must not produce an empty popup');
 echo "Series display passed.\n";

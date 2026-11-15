@@ -65,6 +65,7 @@ class CalendarTestDatabase {
     public $last_error = '';
     public $query_count = 0;
     public $staff_queries = array();
+    public $room_queries = array();
     public $staff_entries = array();
     public $staff_query_fails = false;
     public function prepare($sql, ...$args) {
@@ -90,10 +91,11 @@ class CalendarTestDatabase {
             return array_map(function ($entry) { return clone $entry; }, $entries);
         }
         if (strpos($sql, 'SELECT DISTINCT s.id, s.name') !== false) { return array(); }
+        $this->room_queries[] = $sql;
         return array((object) array(
             'id' => 1, 'room_id' => 2, 'room_name' => 'Blue room', 'room_color' => '#123456',
             'booking_date' => '2026-11-30', 'starts_at' => '10:00:00', 'ends_at' => '11:00:00',
-            'status' => 'approved', 'requester_name' => 'Test', 'requester_email' => 'test@example.org',
+            'status' => 'approved', 'source_type' => 'staff', 'requester_name' => 'Test', 'requester_email' => 'test@example.org', 'staff_initials' => '<AB>',
         ));
     }
 }
@@ -191,6 +193,8 @@ foreach (array('meeting' => true, 'sick_time' => false, 'time_off' => true) as $
     expect((strpos($input[0], 'checked') !== false) === $is_checked, 'Staff type checkboxes must reflect valid selections');
 }
 expect(strpos($html, 'data-calsys-auto-submit') !== false && strpos($html, 'Apply filters') !== false, 'Staff filters must support automatic and manual submission');
+expect((bool) preg_match('/<div class="calsys-category-filter-actions">\s*<button type="submit">Apply filters<\/button>\s*<button type="button" data-calsys-print="calendar">Print calendar<\/button>/', $html) &&
+    substr_count($html, 'data-calsys-print="calendar"') === 1, 'Staff print must appear beside apply without submitting the filter form');
 preg_match('/<a href="([^"]+)" aria-label="Previous period"/', $html, $previous);
 parse_str((string) parse_url(html_entity_decode($previous[1]), PHP_URL_QUERY), $previous_query);
 expect($previous_query['calsys_staff_type'][0] === 'meeting' && $previous_query['calsys_month'] === '2026-10' && $previous_query['other'] === 'retained', 'Month navigation must retain filters and unrelated parameters');
@@ -228,12 +232,19 @@ foreach (array(array(), array('calsys_recurring' => 'yes'), array('calsys_series
 $_GET = array();
 $entries = calsys_room_calendar_entries($month, $month->modify('+1 month'));
 expect($entries[0]->room_color === '#123456' && $entries[0]->title === 'Blue room', 'Visible rooms must retain their individual color');
+expect($entries[0]->staff_initials === '', 'Public room entries must not expose staff initials');
+expect(strpos(end($wpdb->room_queries), 'b.staff_initials') === false, 'Public room queries must not select staff initials');
 $show_room_names = false;
 $entries = calsys_room_calendar_entries($month, $month->modify('+1 month'));
 expect($entries[0]->room_color === '' && $entries[0]->title === 'Reserved room', 'Hidden room names must not expose individual colors');
 $staff = true;
 $entries = calsys_room_calendar_entries($month, $month->modify('+1 month'));
-expect($entries[0]->room_color === '#123456' && $entries[0]->title === 'Blue room', 'Staff must see room colors even when public room names are hidden');
+expect($entries[0]->room_color === '#123456' && $entries[0]->title === 'Blue room' && $entries[0]->source_type === 'staff', 'Staff must see room colors and booking type even when public room names are hidden');
+expect($entries[0]->staff_initials === '<AB>', 'Staff room entries must include saved initials');
+expect(strpos(end($wpdb->room_queries), 'b.staff_initials') !== false, 'Staff room queries must select saved initials');
+$active_rooms = true;
+$room_html = calsys_render_calendar('Rooms', $entries, $month, 'rooms');
+expect(strpos($room_html, 'data-staff-initials="&lt;AB&gt;"') !== false, 'Staff edit controls must escape saved initials');
 
 $staff = false;
 $show_room_names = true;
@@ -283,11 +294,12 @@ $html = calsys_render_calendar('Rooms', array(), $month, 'combined', 'day', $sel
 expect(strpos($html, 'data-calsys-add-room data-date="2026-11-11">Add</button>') !== false, 'Staff must still be able to book on closed days');
 $pending = (object) array(
     'id' => 17, 'title' => 'Room', 'calendar_type' => 'room', 'status' => 'pending',
-    'starts_at' => '2026-11-11 10:00:00', 'ends_at' => '2026-11-11 11:00:00', 'all_day' => 0,
+    'starts_at' => '2026-11-11 10:00:00', 'ends_at' => '2026-11-11 11:00:00', 'all_day' => 0, 'source_type' => 'private',
 );
 $html = calsys_render_calendar('Rooms', array($pending), $month, 'combined', 'day', $selected, true);
 expect(strpos($html, '/wp-admin/admin.php?page=calsys-room-approvals#calsys-room-request-17') !== false, 'Staff calendar must link to the matching backend request');
 expect(strpos($html, 'Approve / Deny') !== false && strpos($html, 'decision_comment') === false && strpos($html, 'calsys_booking_decision') === false, 'Calendar must not offer a decision form or comment field');
+expect(strpos($html, 'data-source-type="private"') !== false, 'Room editing must retain the booking type for cancellation messaging');
 $staff = false;
 $html = calsys_render_calendar('Rooms', array($pending), $month, 'combined', 'day', $selected, true);
 expect(strpos($html, 'calsys-room-approvals') === false, 'Approval links must be visible only to staff');
@@ -303,6 +315,8 @@ $events = array(
     (object) array('id' => 5, 'title' => 'Next month', 'starts_at' => '2026-12-01 10:00:00', 'ends_at' => '2026-12-01 11:00:00', 'all_day' => 0, 'calendar_type' => 'event'),
 );
 $html = calsys_render_calendar('Calendar', $events, $month, 'combined', 'month', $selected, true);
+expect((bool) preg_match('/<div class="calsys-category-filter-actions">\s*<button type="submit">Apply filters<\/button>\s*<button type="button" data-calsys-print="calendar">Print calendar<\/button>\s*<button type="button" data-calsys-print="events">Print events list<\/button>/', $html) &&
+    substr_count($html, 'data-calsys-print="calendar"') === 1, 'Event calendar print controls must appear beside apply without submitting filters');
 preg_match('/<div class="calsys-print-events" hidden>(.*?)<\/div>/s', $html, $match);
 expect(!empty($match[1]) && strpos($match[1], 'Overlapping event') !== false && strpos($match[1], 'Week event') !== false, 'Monthly print list must include events overlapping the month');
 expect(strpos($match[1], 'Outside month') === false && strpos($match[1], 'Next month') === false && strpos($match[1], 'Room booking') === false, 'Monthly print list must exclude adjacent-month events and room bookings');
@@ -325,4 +339,7 @@ $html = calsys_render_calendar('Calendar', array(), $month, 'events', 'week', $s
 expect(strpos($html, 'No events for this period.') !== false, 'An empty print list must explain that there are no events');
 $html = calsys_render_calendar('Calendar', array(), $month, 'events', 'day', $selected, true);
 expect(strpos($html, 'data-calsys-print="calendar"') !== false && strpos($html, 'data-calsys-print="events"') === false, 'Day view must offer calendar printing but not a month or week list');
+$html = calsys_render_calendar('Rooms', array(), $month, 'rooms', 'day', $selected, true);
+expect(strpos($html, '<div class="calsys-print-actions"><button type="button" data-calsys-print="calendar">') !== false &&
+    substr_count($html, 'data-calsys-print="calendar"') === 1, 'Calendars without filters must still offer printing');
 echo "Calendar views passed.\n";

@@ -79,7 +79,7 @@ function calsys_update_event_series($event_id, $scope, $data, $room_id, $equipme
         if ($wpdb->update($events_table, $data, array('id' => $event->id)) === false) {
             return false;
         }
-        $room_result = calsys_sync_linked_room_reservations('event', (int) $event->id, $room_id, $data['starts_at'], $data['ends_at']);
+        $room_result = calsys_sync_linked_room_reservations('event', (int) $event->id, $room_id, $data['starts_at'], $data['ends_at'], false, $data['staff_initials']);
         if ($room_result !== 0) {
             return $room_result === 1 ? 'room_conflict' : false;
         }

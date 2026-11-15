@@ -106,6 +106,7 @@ function calsys_activate() {
         status varchar(20) NOT NULL DEFAULT 'pending',
         source_type varchar(20) NOT NULL DEFAULT '',
         source_id bigint(20) unsigned NOT NULL DEFAULT 0,
+        staff_initials varchar(40) NOT NULL DEFAULT '',
         created_at datetime NOT NULL,
         PRIMARY KEY  (id),
         KEY room_schedule (room_id, booking_date, starts_at, ends_at, status),
@@ -120,6 +121,7 @@ function calsys_activate() {
         ends_at datetime NOT NULL,
         all_day tinyint(1) NOT NULL DEFAULT 0,
         room_id bigint(20) unsigned NOT NULL DEFAULT 0,
+        staff_initials varchar(40) NOT NULL DEFAULT '',
         created_at datetime NOT NULL,
         PRIMARY KEY  (id),
         KEY starts_at_ends_at (starts_at, ends_at)
@@ -188,6 +190,14 @@ function calsys_activate() {
         foreach (array('series_id', 'register_all_recurrences') as $column) {
             if (!$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table('events') . " LIKE '$column'")) {
                 error_log('CommonsCal: unable to add event series fields: ' . $wpdb->last_error);
+                return;
+            }
+        }
+    }
+    if ($previous_db_version < 14) {
+        foreach (array('bookings', 'staff_calendar') as $table_name) {
+            if (!$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table($table_name) . " LIKE 'staff_initials'")) {
+                error_log('CommonsCal: unable to add staff initials to ' . $table_name . ': ' . $wpdb->last_error);
                 return;
             }
         }
@@ -331,7 +341,7 @@ function calsys_email_template_types() {
         'event_registration' => array(__('Event registration confirmed', 'community-calendar-study-rooms'), array('name', 'event', 'datetime')),
         'event_registration_staff' => array(__('Event registration for staff', 'community-calendar-study-rooms'), array('name', 'email', 'event', 'datetime', 'answers')),
         'event_reminder' => array(__('Event reminder', 'community-calendar-study-rooms'), array('name', 'event', 'datetime')),
-        'event_cancelled' => array(__('Event cancelled', 'community-calendar-study-rooms'), array('name', 'event', 'datetime')),
+        'event_cancelled' => array(__('Event cancelled', 'community-calendar-study-rooms'), array('name', 'event', 'datetime', 'comment')),
         'waitlist_joined' => array(__('Waitlist joined', 'community-calendar-study-rooms'), array('name', 'event', 'datetime')),
         'waitlist_promoted' => array(__('Waitlist place confirmed', 'community-calendar-study-rooms'), array('name', 'event', 'datetime')),
         'registration_cancelled' => array(__('Event registration cancelled', 'community-calendar-study-rooms'), array('name', 'event', 'datetime')),
@@ -890,16 +900,48 @@ function calsys_show_public_category_labels() {
         (bool) calsys_get_settings()['calendar_display']['show_category_labels'];
 }
 
+/** Validates an optional staff message for a cancellation. */
+function calsys_cancellation_comment($raw_comment) {
+    if (!is_string($raw_comment)) {
+        return false;
+    }
+    $comment = sanitize_textarea_field(wp_unslash($raw_comment));
+    return strlen($comment) <= 16000 ? $comment : false;
+}
+
+/** Validates staff initials supplied for a calendar entry. */
+function calsys_validate_staff_initials($raw_initials) {
+    if (!is_string($raw_initials)) {
+        return false;
+    }
+    $initials = sanitize_text_field(wp_unslash($raw_initials));
+    return $initials !== '' && strlen($initials) <= 40 ? $initials : false;
+}
+
 /** Sends a plugin notification using its configured template and sender. */
 function calsys_send_email($recipient, $subject, $message, $type = '', $context = array()) {
     $settings = calsys_get_settings()['email_settings'];
+    $is_cancellation = in_array($type, array('event_cancelled', 'room_cancelled'), true);
+    $comment = $is_cancellation && isset($context['comment']) ? $context['comment'] : '';
+    $base_message = $message;
+    if ($comment !== '') {
+        $message .= "\n\n" . __('Staff comment:', 'community-calendar-study-rooms') . "\n" . $comment;
+    }
     if ($type !== '' && isset($settings['templates'][$type])) {
-        $replacements = array('{subject}' => $subject, '{message}' => $message);
+        $template_body = $settings['templates'][$type]['body'];
+        $template_message = $is_cancellation && strpos($template_body, '{comment}') !== false ? $base_message : $message;
+        $replacements = array('{subject}' => $subject, '{message}' => $template_message);
         foreach ($context as $key => $value) {
             $replacements['{' . $key . '}'] = (string) $value;
         }
         $subject = sanitize_text_field(strtr($settings['templates'][$type]['subject'], $replacements));
-        $message = strtr($settings['templates'][$type]['body'], $replacements);
+        $message = strtr($template_body, $replacements);
+        if ($is_cancellation && strpos($template_body, '{message}') === false) {
+            $message .= "\n\n" . $base_message;
+            if ($comment !== '' && strpos($template_body, '{comment}') === false) {
+                $message .= "\n\n" . __('Staff comment:', 'community-calendar-study-rooms') . "\n" . $comment;
+            }
+        }
     }
     $headers = array();
     if ($settings['from_email'] !== '') {

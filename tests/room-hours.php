@@ -3,6 +3,11 @@
 define('ABSPATH', __DIR__ . '/');
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function add_action() {}
+function calsys_table($name) { return 'wp_calsys_' . $name; }
+function __($value) { return $value; }
+function sanitize_email($value) { return $value; }
+function get_option($name) { return 'admin@example.org'; }
+function current_time($format) { return '2026-11-11 12:00:00'; }
 function expect($condition, $message) {
     if (!$condition) { fwrite(STDERR, $message . "\n"); exit(1); }
 }
@@ -38,4 +43,24 @@ expect(calsys_normalize_room_schedule($weekly, array(array('date' => '2026-12-25
 expect(!calsys_room_duration_exceeds_limit('09:00', '11:00', 120), 'Bookings at the duration limit must be allowed');
 expect(calsys_room_duration_exceeds_limit('09:00', '11:15', 120), 'Bookings over the duration limit must be rejected');
 expect(!calsys_room_duration_exceeds_limit('09:00', '17:00', 0), 'Zero must leave booking duration unrestricted');
+class LinkedInitialsDatabase {
+    public $inserted = array();
+    public function delete() { return 1; }
+    public function prepare($sql, ...$args) { return $sql; }
+    public function get_var($sql) { return 0; }
+    public function insert($table, $data, $formats) {
+        expect(count($data) === count($formats), 'Linked booking formats must match fields');
+        $this->inserted[] = $data;
+        return 1;
+    }
+}
+$wpdb = new LinkedInitialsDatabase();
+foreach (array('staff', 'event') as $source) {
+    $result = calsys_sync_linked_room_reservations($source, 1, 2, '2026-12-01 23:00:00', '2026-12-02 01:00:00', false, 'XY');
+    expect($result === 0, 'Linked room reservations should save');
+}
+expect(count($wpdb->inserted) === 4, 'Both sources should create reservations for each day');
+foreach ($wpdb->inserted as $booking) {
+    expect($booking['staff_initials'] === 'XY', 'Each linked room reservation must retain the source editor initials');
+}
 echo "Room opening hours passed.\n";

@@ -21,6 +21,11 @@ function check_admin_referer($action) {}
 function calsys_action_redirect($frontend, $page, $notice, $count = 0) { throw new EventTestRedirect($notice); }
 function sanitize_text_field($value) { return trim(strip_tags($value)); }
 function wp_unslash($value) { return $value; }
+function calsys_validate_staff_initials($value) {
+    if (!is_string($value)) { return false; }
+    $value = sanitize_text_field(wp_unslash($value));
+    return $value !== '' && strlen($value) <= 40 ? $value : false;
+}
 function wp_kses_post($value) { return $value; }
 function calsys_parse_datetime($value) { return str_replace('T', ' ', $value) . ':00'; }
 function absint($value) { return abs((int) $value); }

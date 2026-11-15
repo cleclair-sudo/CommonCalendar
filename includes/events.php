@@ -82,10 +82,10 @@ function calsys_save_event($frontend = false) {
 
     $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
     $description = wp_kses_post(wp_unslash($_POST['description'] ?? ''));
-    if (!isset($_POST['staff_initials']) || !is_string($_POST['staff_initials'])) {
+    $staff_initials = calsys_validate_staff_initials($_POST['staff_initials'] ?? null);
+    if ($staff_initials === false) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
-    $staff_initials = sanitize_text_field(wp_unslash($_POST['staff_initials']));
     if (isset($_POST['image_id']) && !is_scalar($_POST['image_id'])) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
@@ -182,7 +182,7 @@ function calsys_save_event($frontend = false) {
     $occurrence_count = absint($_POST['recurrence_count'] ?? 0);
     $until = sanitize_text_field(wp_unslash($_POST['recurrence_until'] ?? ''));
 
-    if ($title === '' || strlen($title) > 200 || $staff_initials === '' || strlen($staff_initials) > 40 || !$starts_at || !$ends_at || $ends_at <= $starts_at ||
+    if ($title === '' || strlen($title) > 200 || !$starts_at || !$ends_at || $ends_at <= $starts_at ||
         !in_array($status, array('draft', 'published'), true) || !isset($categories[$category]) ||
         ($event_id && isset($_POST['recurring']))) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
@@ -292,7 +292,7 @@ function calsys_save_event($frontend = false) {
             $wpdb->query('ROLLBACK');
             calsys_action_redirect($frontend, 'calsys-events', 'invalid');
         }
-        $saved_room = calsys_sync_linked_room_reservations('event', $event_id, $room_id, $starts_at, $ends_at);
+        $saved_room = calsys_sync_linked_room_reservations('event', $event_id, $room_id, $starts_at, $ends_at, false, $staff_initials);
         if ($saved_room === false) {
             $wpdb->query('ROLLBACK');
             calsys_action_redirect($frontend, 'calsys-events', 'invalid');
@@ -314,7 +314,7 @@ function calsys_save_event($frontend = false) {
                 calsys_action_redirect($frontend, 'calsys-events', 'invalid');
             }
             $new_event_id = (int) $wpdb->insert_id;
-            $saved_room = calsys_sync_linked_room_reservations('event', $new_event_id, $room_id, $occurrence[0], $occurrence[1], $index === 0 && $allow_first_conflict);
+            $saved_room = calsys_sync_linked_room_reservations('event', $new_event_id, $room_id, $occurrence[0], $occurrence[1], $index === 0 && $allow_first_conflict, $staff_initials);
             if ($saved_room === false) {
                 $wpdb->query('ROLLBACK');
                 calsys_action_redirect($frontend, 'calsys-events', 'invalid');
@@ -361,7 +361,8 @@ function calsys_delete_event($frontend = false) {
     calsys_require_staff();
     check_admin_referer($frontend ? 'calsys_front_delete_event' : 'calsys_delete_event');
     $event_id = absint($_POST['event_id'] ?? 0);
-    if (!$event_id) {
+    $comment = calsys_cancellation_comment($_POST['cancellation_comment'] ?? '');
+    if (!$event_id || $comment === false) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
 
@@ -403,21 +404,25 @@ function calsys_delete_event($frontend = false) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
     $email_failed = false;
-    if ($event->starts_at > current_time('mysql')) {
+    if ($event->ends_at > current_time('mysql')) {
         foreach (array_merge($attendees, $waiting) as $person) {
             if (!is_email($person->email)) {
+                error_log('CommonsCal: an event cancellation recipient has no valid email address.');
+                $email_failed = true;
                 continue;
             }
+            $message = sprintf(__('Hello %1$s, %2$s scheduled for %3$s has been cancelled.', 'community-calendar-study-rooms'),
+                $person->name,
+                $event->title,
+                mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at));
             $sent = calsys_send_email(
                 $person->email,
                 sprintf(__('Event cancelled: %s', 'community-calendar-study-rooms'), $event->title),
-                sprintf(__('Hello %1$s, %2$s scheduled for %3$s has been cancelled.', 'community-calendar-study-rooms'),
-                    $person->name,
-                    $event->title,
-                    mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)),
+                $message,
                  'event_cancelled',
                  array('name' => $person->name, 'event' => $event->title,
-                    'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at))
+                    'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at),
+                    'comment' => $comment)
             );
             $email_failed = !$sent || $email_failed;
         }

@@ -122,6 +122,7 @@ function calsys_activate() {
         all_day tinyint(1) NOT NULL DEFAULT 0,
         room_id bigint(20) unsigned NOT NULL DEFAULT 0,
         staff_initials varchar(40) NOT NULL DEFAULT '',
+        notes text NOT NULL,
         created_at datetime NOT NULL,
         PRIMARY KEY  (id),
         KEY starts_at_ends_at (starts_at, ends_at)
@@ -201,6 +202,10 @@ function calsys_activate() {
                 return;
             }
         }
+    }
+    if ($previous_db_version < 15 && !$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table('staff_calendar') . " LIKE 'notes'")) {
+        error_log('CommonsCal: unable to add staff calendar notes: ' . $wpdb->last_error);
+        return;
     }
 
     calsys_grant_role_capabilities();

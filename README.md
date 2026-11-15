@@ -81,6 +81,8 @@ Only users with the `manage_calendar_system` capability can view the staff calen
 
 On the staff calendar, check one or more entry types to show matching entries; leave all types unchecked to show everything. The dashboard's upcoming entries list uses the same filter. Type choices come from **Settings > Calendar colors > Staff booking types**.
 
+Staff calendar entries can include optional private additional notes, available when editing the entry. Their time dropdowns offer 15-minute intervals; existing entries with other times remain editable.
+
 On plugin updates, the staff calendar table is added automatically without removing existing events, registrations, rooms, or bookings.
 Room requests include an optional reason field; staff can review the reason alongside each request in the Rooms panel.
 

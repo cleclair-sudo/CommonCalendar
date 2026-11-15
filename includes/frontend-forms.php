@@ -219,9 +219,10 @@ function calsys_front_staff_form() {
                     <p><label><?php esc_html_e('Title', 'community-calendar-study-rooms'); ?><input name="title" type="text" maxlength="200" required></label></p>
                     <p><label><?php esc_html_e('Your initials', 'community-calendar-study-rooms'); ?><input name="staff_initials" type="text" maxlength="10" required></label><span data-calsys-saved-initials></span></p>
                     <p><label><?php esc_html_e('Type', 'community-calendar-study-rooms'); ?><select name="entry_type"><?php foreach ($types as $key => $label) : ?><option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></p>
-                    <?php echo calsys_datetime_fields('starts_at', __('Starts', 'community-calendar-study-rooms')); ?>
-                    <?php echo calsys_datetime_fields('ends_at', __('Ends', 'community-calendar-study-rooms')); ?>
+                    <?php echo calsys_datetime_fields('starts_at', __('Starts', 'community-calendar-study-rooms'), '', 15); ?>
+                    <?php echo calsys_datetime_fields('ends_at', __('Ends', 'community-calendar-study-rooms'), '', 15); ?>
                     <p class="calsys-form-wide"><label class="calsys-checkbox-label"><input name="all_day" type="checkbox" value="1"> <?php esc_html_e('All day (uses the start and end dates)', 'community-calendar-study-rooms'); ?></label></p>
+                    <p class="calsys-form-wide"><label><?php esc_html_e('Additional notes (optional)', 'community-calendar-study-rooms'); ?><textarea name="notes" rows="3" maxlength="4000"></textarea></label></p>
                     <p class="calsys-form-wide"><label><?php esc_html_e('Room (optional)', 'community-calendar-study-rooms'); ?>
                         <select name="room_id" data-calsys-room-select>
                             <option value=""><?php esc_html_e('No room reservation', 'community-calendar-study-rooms'); ?></option>
@@ -270,13 +271,13 @@ function calsys_room_time_options($increment = 0, $step = 15, $selected_time = '
 }
 
 /** Renders separate date and 12-hour time controls for an event or staff entry. */
-function calsys_datetime_fields($name, $label, $value = '') {
+function calsys_datetime_fields($name, $label, $value = '', $step = 1) {
     $date = $value !== '' ? substr($value, 0, 10) : '';
     $time = $value !== '' ? substr($value, 11, 5) : '';
     return '<fieldset class="calsys-datetime-fields"><legend>' . esc_html($label) . '</legend>' .
         '<label>' . esc_html__('Date', 'community-calendar-study-rooms') . '<input type="date" name="' . esc_attr($name) . '_date" value="' . esc_attr($date) . '" required></label>' .
-        '<label>' . esc_html__('Time', 'community-calendar-study-rooms') . '<select name="' . esc_attr($name) . '_time" required>' .
-        calsys_room_time_options(0, 1, $time) . '</select></label></fieldset>';
+        '<label>' . esc_html__('Time', 'community-calendar-study-rooms') . '<select name="' . esc_attr($name) . '_time"' . ($step > 1 ? ' data-calsys-existing-time-select' : '') . ' required>' .
+        calsys_room_time_options(0, $step, $time) . '</select></label></fieldset>';
 }
 
 /** Adds the configuration needed for live room-availability checks. */

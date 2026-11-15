@@ -518,6 +518,7 @@ function calsys_render_calendar($title, $events, $month, $calendar_type, $view =
                                                 data-staff-initials="<?php echo esc_attr($event->staff_initials ?? ''); ?>"
                                                 data-equipment="<?php echo esc_attr(wp_json_encode($equipment_by_entry['staff:' . $event->id])); ?>"
                                                 data-title="<?php echo esc_attr($event->title); ?>"
+                                                data-notes="<?php echo esc_attr($event->notes ?? ''); ?>"
                                                 data-entry-type="<?php echo esc_attr($event->entry_type ?? 'other'); ?>"
                                                 data-room-id="<?php echo esc_attr($event->room_id ?? 0); ?>"
                                                 data-start="<?php echo esc_attr(str_replace(' ', 'T', substr($event->starts_at, 0, 16))); ?>"
@@ -1071,7 +1072,7 @@ function calsys_staff_calendar_shortcode() {
     $grid_start = $month->modify('-' . (((int) $month->format('w') - calsys_week_start_day() + 7) % 7) . ' days');
     $grid_end = $grid_start->modify('+42 days');
     $entries = $wpdb->get_results($wpdb->prepare(
-        "SELECT id, title, entry_type, starts_at, ends_at, all_day, room_id, staff_initials
+        "SELECT id, title, entry_type, starts_at, ends_at, all_day, room_id, staff_initials, notes
         FROM " . calsys_table('staff_calendar') . "
         WHERE starts_at < %s AND ends_at >= %s " . calsys_staff_type_sql() . "
         ORDER BY starts_at ASC",

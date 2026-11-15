@@ -796,7 +796,7 @@ function calsys_admin_staff_calendar_page() {
     $grid_start = $month->modify('-' . (((int) $month->format('w') - calsys_week_start_day() + 7) % 7) . ' days');
     $grid_end = $grid_start->modify('+42 days');
     $calendar_entries = $wpdb->get_results($wpdb->prepare(
-        "SELECT id, title, entry_type, starts_at, ends_at, all_day, room_id, staff_initials
+        "SELECT id, title, entry_type, starts_at, ends_at, all_day, room_id, staff_initials, notes
         FROM " . calsys_table('staff_calendar') . "
         WHERE starts_at < %s AND ends_at >= %s " . calsys_staff_type_sql() . "
         ORDER BY starts_at ASC",
@@ -878,6 +878,14 @@ function calsys_save_staff_entry($frontend = false) {
     global $wpdb;
 
     $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
+    $raw_notes = wp_unslash($_POST['notes'] ?? '');
+    if (!is_string($raw_notes)) {
+        calsys_action_redirect($frontend, 'calsys-staff-calendar', 'invalid');
+    }
+    $notes = sanitize_textarea_field($raw_notes);
+    if (strlen($notes) > 16000) {
+        calsys_action_redirect($frontend, 'calsys-staff-calendar', 'invalid');
+    }
     $staff_initials = calsys_validate_staff_initials($_POST['staff_initials'] ?? null);
     if ($staff_initials === false) {
         calsys_action_redirect($frontend, 'calsys-staff-calendar', 'invalid');
@@ -931,6 +939,7 @@ function calsys_save_staff_entry($frontend = false) {
         'all_day' => $all_day ? 1 : 0,
         'room_id' => $room_id,
         'staff_initials' => $staff_initials,
+        'notes' => $notes,
     );
     if ($wpdb->query('START TRANSACTION') === false || !calsys_lock_linked_room_ids('staff', $entry_id, $room_id)) {
         $wpdb->query('ROLLBACK');
@@ -938,7 +947,7 @@ function calsys_save_staff_entry($frontend = false) {
     }
     $staff_table = calsys_table('staff_calendar');
     if ($entry_id) {
-        $updated = $wpdb->update($staff_table, $data, array('id' => $entry_id), array('%s', '%s', '%s', '%s', '%d', '%d', '%s'), array('%d'));
+        $updated = $wpdb->update($staff_table, $data, array('id' => $entry_id), array('%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s'), array('%d'));
         if ($updated === false || !$wpdb->get_var($wpdb->prepare("SELECT id FROM $staff_table WHERE id = %d", $entry_id))) {
             $wpdb->query('ROLLBACK');
             calsys_action_redirect($frontend, 'calsys-staff-calendar', 'invalid');
@@ -946,7 +955,7 @@ function calsys_save_staff_entry($frontend = false) {
         $saved_room = calsys_sync_linked_room_reservations('staff', $entry_id, $room_id, $starts_at, $ends_at, false, $staff_initials);
     } else {
         $data['created_at'] = current_time('mysql');
-        if (!$wpdb->insert($staff_table, $data, array('%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s'))) {
+        if (!$wpdb->insert($staff_table, $data, array('%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s'))) {
             $wpdb->query('ROLLBACK');
             calsys_action_redirect($frontend, 'calsys-staff-calendar', 'invalid');
         }

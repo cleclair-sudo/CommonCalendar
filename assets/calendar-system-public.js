@@ -78,12 +78,13 @@
             if (dateField && timeField) {
                 var parts = (value || '').split('T');
                 dateField.value = parts[0] || '';
-                timeField.value = parts[1] || '';
+                setValue(form, name + '_time', parts[1] || '');
             }
             return;
         }
         if (field) {
-            if (value && field instanceof HTMLSelectElement && field.hasAttribute('data-calsys-room-time') &&
+            if (value && field instanceof HTMLSelectElement &&
+                (field.hasAttribute('data-calsys-room-time') || field.hasAttribute('data-calsys-existing-time-select')) &&
                 !Array.prototype.some.call(field.options, function (option) { return option.value === value; })) {
                 var previousTime = document.createElement('option');
                 previousTime.value = value;
@@ -594,6 +595,7 @@
         }
         form.reset();
         setValue(form, 'entry_id', '0');
+        form.querySelectorAll('[data-calsys-existing-time]').forEach(function (option) { option.remove(); });
         var savedInitials = form.querySelector('[data-calsys-saved-initials]');
         if (savedInitials) {
             savedInitials.textContent = '';
@@ -950,6 +952,7 @@
                     staffSaveButton.textContent = labels.saveChanges || 'Save changes';
                 }
                 setValue(editStaffForm, 'title', button.dataset.title);
+                setValue(editStaffForm, 'notes', button.dataset.notes);
                 var staffSavedInitials = editStaffForm.querySelector('[data-calsys-saved-initials]');
                 if (staffSavedInitials && button.dataset.staffInitials) {
                     staffSavedInitials.textContent = (labels.lastSavedBy || 'Last saved by: %s').replace('%s', button.dataset.staffInitials);

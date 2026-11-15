@@ -11,7 +11,7 @@ register_shutdown_function(function () use ($fixture) {
 });
 define('ABSPATH', $fixture . DIRECTORY_SEPARATOR);
 define('CALSYS_PLUGIN_FILE', __FILE__);
-define('CALSYS_DB_VERSION', '14');
+define('CALSYS_DB_VERSION', '15');
 
 class InitialsRedirect extends Exception {
     public $notice;
@@ -23,6 +23,7 @@ class InitialsDatabase {
     public $insert_id = 12;
     public $writes = array();
     public $missing_column = '';
+    public $missing_notes = false;
     public $last_args = array();
     public function get_charset_collate() { return ''; }
     public function esc_like($value) { return $value; }
@@ -30,6 +31,7 @@ class InitialsDatabase {
     public function get_var($sql) {
         if (strpos($sql, 'SHOW TABLES LIKE') !== false) { return $this->last_args[0]; }
         if ($this->missing_column && strpos($sql, 'SHOW COLUMNS FROM wp_calsys_' . $this->missing_column) !== false) { return null; }
+        if ($this->missing_notes && strpos($sql, "LIKE 'notes'") !== false) { return null; }
         return 1;
     }
     public function get_row($sql) { return (object) array('id' => 17, 'status' => 'pending'); }
@@ -60,7 +62,7 @@ function get_role($name) { return null; }
 function wp_next_scheduled($name) { return true; }
 function update_option($name, $value) { $GLOBALS['updated_options'][$name] = $value; }
 function get_option($name, $default = false) {
-    if ($name === 'calsys_db_version') { return 13; }
+    if ($name === 'calsys_db_version') { return $GLOBALS['previous_db_version']; }
     if ($name === 'admin_email') { return 'admin@example.org'; }
     if ($name === 'time_format') { return 'H:i'; }
     if ($name === 'calsys_settings') {
@@ -135,14 +137,20 @@ $staff = true;
 $sent_mail = array();
 $schemas = array();
 $updated_options = array();
+$previous_db_version = 13;
 foreach (array('bookings', 'staff_calendar') as $missing) {
     $wpdb->missing_column = $missing;
     calsys_activate();
     expect(!isset($updated_options['calsys_db_version']), 'A missing initials column must prevent upgrade completion');
 }
 $wpdb->missing_column = '';
+$previous_db_version = 14;
+$wpdb->missing_notes = true;
 calsys_activate();
-expect($updated_options['calsys_db_version'] === '14', 'A successful upgrade must record database version 14');
+expect(!isset($updated_options['calsys_db_version']), 'A missing notes column must prevent upgrade completion');
+$wpdb->missing_notes = false;
+calsys_activate();
+expect($updated_options['calsys_db_version'] === '15', 'A successful upgrade must record database version 15');
 foreach (array('bookings', 'staff_calendar') as $table) {
     $matches = array_filter($schemas, function ($sql) use ($table) {
         return strpos($sql, 'CREATE TABLE wp_calsys_' . $table . ' ') !== false &&
@@ -150,20 +158,34 @@ foreach (array('bookings', 'staff_calendar') as $table) {
     });
     expect((bool) $matches, 'The upgrade must add a default-empty initials column to ' . $table);
 }
+expect((bool) array_filter($schemas, function ($sql) {
+    return strpos($sql, 'CREATE TABLE wp_calsys_staff_calendar ') !== false && strpos($sql, 'notes text NOT NULL') !== false;
+}), 'The upgrade must add staff calendar notes');
 
 $staff_post = array('title' => 'Meeting', 'entry_type' => 'other', 'starts_at' => '2026-12-01T10:00',
-    'ends_at' => '2026-12-01T11:00', 'room_id' => '1', 'staff_initials' => ' <b>AB</b> ');
+    'ends_at' => '2026-12-01T11:00', 'room_id' => '1', 'staff_initials' => ' <b>AB</b> ', 'notes' => " <b>Agenda</b>\nDetails ");
 $_POST = $staff_post;
 try { calsys_save_staff_entry(); expect(false, 'Expected staff creation redirect'); } catch (InitialsRedirect $result) {
     expect($result->notice === 'staff_event_saved', 'Staff entry creation failed');
 }
 expect($wpdb->writes[0][1]['staff_initials'] === 'AB' && $linked_initials === 'AB', 'Staff creation must save and propagate sanitized initials');
+expect($wpdb->writes[0][1]['notes'] === "Agenda\nDetails", 'Staff creation must save sanitized multiline notes');
 $_POST['entry_id'] = '17';
 $_POST['staff_initials'] = 'CD';
+$_POST['notes'] = '';
 try { calsys_save_staff_entry(true); expect(false, 'Expected staff edit redirect'); } catch (InitialsRedirect $result) {
     expect($result->notice === 'staff_event_saved', 'Staff entry editing failed');
 }
 expect($wpdb->writes[1][1]['staff_initials'] === 'CD' && $linked_initials === 'CD', 'Staff editing must save the current editor initials');
+expect($wpdb->writes[1][1]['notes'] === '', 'Staff editing must allow notes to be cleared');
+
+foreach (array(array('bad'), str_repeat('x', 16001)) as $invalid_notes) {
+    $_POST = $staff_post;
+    $_POST['notes'] = $invalid_notes;
+    try { calsys_save_staff_entry(); expect(false, 'Invalid staff-entry notes accepted'); } catch (InitialsRedirect $result) {
+        expect($result->notice === 'invalid' && count($wpdb->writes) === 2, 'Invalid staff-entry notes must not write');
+    }
+}
 
 foreach (array(null, '', '  ', array('AB'), str_repeat('x', 41)) as $invalid) {
     $_POST = $staff_post;
@@ -205,9 +227,13 @@ expect(substr_count($room_form, 'name="staff_initials"') === 1 &&
     strpos($room_form, 'name="staff_initials"') < strpos($room_form, 'data-calsys-public-event-fields'),
     'The staff room form must have one required initials input outside the conditional public event fields');
 expect(strpos($staff_form, 'name="staff_initials" type="text" maxlength="10" required') !== false, 'The staff entry form must require initials');
+expect(strpos($staff_form, 'name="notes" rows="3" maxlength="4000"') !== false, 'The staff entry form must offer optional notes');
 expect(strpos($staff_form, 'name="starts_at_date"') !== false && strpos($staff_form, 'name="starts_at_time"') !== false &&
     strpos($staff_form, 'value="00:00">12:00 AM') !== false && strpos($staff_form, 'value="12:00">12:00 PM') !== false &&
-    strpos($staff_form, 'value="13:37">1:37 PM') !== false, 'Time controls must offer every minute with 12-hour labels');
+    strpos($staff_form, 'value="13:45">1:45 PM') !== false && strpos($staff_form, 'value="13:37">') === false &&
+    substr_count($staff_form, 'data-calsys-existing-time-select') === 2, 'Staff time dropdowns must offer 15-minute choices with 12-hour labels');
+expect(strpos(calsys_datetime_fields('starts_at', 'Starts'), 'value="13:37">1:37 PM') !== false,
+    'Event time controls must continue to offer every minute');
 $_POST = $staff_post;
 unset($_POST['starts_at'], $_POST['ends_at']);
 $_POST += array('starts_at_date' => '2026-12-02', 'starts_at_time' => '13:37', 'ends_at_date' => '2026-12-02', 'ends_at_time' => '14:00');

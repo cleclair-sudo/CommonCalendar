@@ -152,7 +152,7 @@ $logged_in = false;
 $hide_guest_room_bookings = false;
 $show_room_names = true;
 $wpdb->staff_entries = array(
-    (object) array('id' => 1, 'title' => 'Team meeting', 'entry_type' => 'meeting', 'starts_at' => '2026-11-12 10:00:00', 'ends_at' => '2026-11-12 11:00:00', 'all_day' => 0, 'room_id' => 0),
+    (object) array('id' => 1, 'title' => 'Team meeting', 'entry_type' => 'meeting', 'starts_at' => '2026-11-12 10:00:00', 'ends_at' => '2026-11-12 11:00:00', 'all_day' => 0, 'room_id' => 0, 'notes' => "Agenda \"A\"\nDetails"),
     (object) array('id' => 2, 'title' => 'Sick day', 'entry_type' => 'sick_time', 'starts_at' => '2026-11-13 10:00:00', 'ends_at' => '2026-11-13 11:00:00', 'all_day' => 0, 'room_id' => 0),
     (object) array('id' => 3, 'title' => 'Vacation', 'entry_type' => 'time_off', 'starts_at' => '2026-11-14 10:00:00', 'ends_at' => '2026-11-14 11:00:00', 'all_day' => 0, 'room_id' => 0),
 );
@@ -168,6 +168,10 @@ foreach (array(
     $wpdb->staff_queries = array();
     $html = calsys_staff_calendar_shortcode();
     expect(count($wpdb->staff_queries) === 1, 'Staff shortcode must query its calendar once');
+    expect(strpos($wpdb->staff_queries[0], 'staff_initials, notes') !== false, 'Staff calendar must load saved notes');
+    if (in_array('Team meeting', $case[1], true)) {
+        expect(strpos($html, "data-notes=\"Agenda &quot;A&quot;\nDetails\"") !== false, 'Staff edit button must include safely escaped notes');
+    }
     foreach (array('Team meeting', 'Sick day', 'Vacation') as $title) {
         expect((strpos($html, $title) !== false) === in_array($title, $case[1], true), "Shortcode filter must control $title");
     }
@@ -175,6 +179,7 @@ foreach (array(
     calsys_admin_staff_calendar_page();
     $admin_html = ob_get_clean();
     expect(count($wpdb->staff_queries) === 3, 'Dashboard must query both the grid and upcoming entries');
+    expect(strpos($wpdb->staff_queries[2], 'staff_initials, notes') !== false, 'Dashboard calendar must load saved notes');
     foreach (array('Team meeting', 'Sick day', 'Vacation') as $title) {
         expect(substr_count($admin_html, $title) === (in_array($title, $case[1], true) ? 3 : 0), "Dashboard filter must control grid and upcoming list for $title");
     }

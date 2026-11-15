@@ -89,8 +89,8 @@ function calsys_save_event($frontend = false) {
     if (isset($_POST['image_id']) && !is_scalar($_POST['image_id'])) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
-    $starts_at = calsys_parse_datetime($_POST['starts_at'] ?? '');
-    $ends_at = calsys_parse_datetime($_POST['ends_at'] ?? '');
+    $starts_at = calsys_parse_datetime($_POST['starts_at'] ?? array($_POST['starts_at_date'] ?? null, $_POST['starts_at_time'] ?? null));
+    $ends_at = calsys_parse_datetime($_POST['ends_at'] ?? array($_POST['ends_at_date'] ?? null, $_POST['ends_at_time'] ?? null));
     $capacity = absint($_POST['capacity'] ?? 0);
     $status = sanitize_key(wp_unslash($_POST['status'] ?? 'draft'));
     $category = sanitize_key(wp_unslash($_POST['category'] ?? 'adult'));
@@ -414,14 +414,14 @@ function calsys_delete_event($frontend = false) {
             $message = sprintf(__('Hello %1$s, %2$s scheduled for %3$s has been cancelled.', 'community-calendar-study-rooms'),
                 $person->name,
                 $event->title,
-                mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at));
+                mysql2date(get_option('date_format') . ' g:i A', $event->starts_at));
             $sent = calsys_send_email(
                 $person->email,
                 sprintf(__('Event cancelled: %s', 'community-calendar-study-rooms'), $event->title),
                 $message,
                  'event_cancelled',
                  array('name' => $person->name, 'event' => $event->title,
-                    'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at),
+                    'datetime' => mysql2date(get_option('date_format') . ' g:i A', $event->starts_at),
                     'comment' => $comment)
             );
             $email_failed = !$sent || $email_failed;

@@ -193,6 +193,13 @@ function calsys_admin_menu() {
 }
 add_action('admin_menu', 'calsys_admin_menu');
 
+/** Renders an optional opening-hours input using 12-hour time. */
+function calsys_hours_input($name, $value, $label) {
+    return '<input type="text" name="' . esc_attr($name) . '" value="' . esc_attr(calsys_hours_input_value($value)) .
+        '" aria-label="' . esc_attr($label) . '" placeholder="9:00 AM" maxlength="8" ' .
+        'pattern="(0?[1-9]|1[0-2]):[0-5][0-9] ?[aApP][mM]" data-calsys-hours-input>';
+}
+
 /** Renders one holiday-hours exception row. */
 function calsys_holiday_hours_row($index, $holiday) {
     ?>
@@ -200,7 +207,7 @@ function calsys_holiday_hours_row($index, $holiday) {
         <td><input type="date" name="holiday_hours[<?php echo esc_attr($index); ?>][date]" value="<?php echo esc_attr($holiday['date']); ?>" aria-label="<?php esc_attr_e('Holiday date', 'community-calendar-study-rooms'); ?>" required></td>
         <td><label><input type="checkbox" name="holiday_hours[<?php echo esc_attr($index); ?>][annual]" value="1" <?php checked($holiday['annual']); ?>> <?php esc_html_e('Every year', 'community-calendar-study-rooms'); ?></label></td>
         <td><select name="holiday_hours[<?php echo esc_attr($index); ?>][mode]" aria-label="<?php esc_attr_e('Holiday availability', 'community-calendar-study-rooms'); ?>"><option value="closed" <?php selected($holiday['mode'], 'closed'); ?>><?php esc_html_e('Closed', 'community-calendar-study-rooms'); ?></option><option value="open" <?php selected($holiday['mode'], 'open'); ?>><?php esc_html_e('Custom hours', 'community-calendar-study-rooms'); ?></option></select></td>
-        <td><input type="time" name="holiday_hours[<?php echo esc_attr($index); ?>][open]" value="<?php echo esc_attr($holiday['open']); ?>" aria-label="<?php esc_attr_e('Holiday opens', 'community-calendar-study-rooms'); ?>"> &ndash; <input type="time" name="holiday_hours[<?php echo esc_attr($index); ?>][close]" value="<?php echo esc_attr($holiday['close']); ?>" aria-label="<?php esc_attr_e('Holiday closes', 'community-calendar-study-rooms'); ?>"></td>
+        <td><?php echo calsys_hours_input('holiday_hours[' . $index . '][open]', $holiday['open'], __('Holiday opens', 'community-calendar-study-rooms')); ?> &ndash; <?php echo calsys_hours_input('holiday_hours[' . $index . '][close]', $holiday['close'], __('Holiday closes', 'community-calendar-study-rooms')); ?></td>
         <td><button class="button calsys-remove-holiday" type="button"><?php esc_html_e('Remove', 'community-calendar-study-rooms'); ?></button></td>
     </tr>
     <?php
@@ -338,14 +345,14 @@ function calsys_admin_settings_page() {
                         <p class="description"><?php esc_html_e('When unchecked, valid public room requests are confirmed immediately.', 'community-calendar-study-rooms'); ?></p></td></tr>
             </tbody></table>
             <h3><?php esc_html_e('Weekly opening hours', 'community-calendar-study-rooms'); ?></h3>
-            <p class="description"><?php esc_html_e('Choose Open and enter both times for specific hours. Choose Unrestricted or Closed for days without specific hours. Public room requests must fit within these hours.', 'community-calendar-study-rooms'); ?></p>
+            <p class="description"><?php esc_html_e('Choose Open and enter both times using AM or PM, such as 9:00 AM. Choose Unrestricted or Closed for days without specific hours. Public room requests must fit within these hours.', 'community-calendar-study-rooms'); ?></p>
             <table class="widefat striped" id="calsys-weekly-hours"><thead><tr><th><?php esc_html_e('Day', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Availability', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Opening and closing times', 'community-calendar-study-rooms'); ?></th></tr></thead><tbody>
                 <?php foreach (array(__('Sunday', 'community-calendar-study-rooms'), __('Monday', 'community-calendar-study-rooms'), __('Tuesday', 'community-calendar-study-rooms'), __('Wednesday', 'community-calendar-study-rooms'), __('Thursday', 'community-calendar-study-rooms'), __('Friday', 'community-calendar-study-rooms'), __('Saturday', 'community-calendar-study-rooms')) as $day => $day_label) : $hours = $settings['booking_rules']['weekly_hours'][$day]; ?>
                 <tr><th scope="row"><?php echo esc_html($day_label); ?></th><td><select name="weekly_hours[<?php echo esc_attr($day); ?>][mode]" aria-label="<?php echo esc_attr(sprintf(__('%s availability', 'community-calendar-study-rooms'), $day_label)); ?>">
                     <option value="unrestricted" <?php selected($hours['mode'], 'unrestricted'); ?>><?php esc_html_e('Unrestricted', 'community-calendar-study-rooms'); ?></option>
                     <option value="open" <?php selected($hours['mode'], 'open'); ?>><?php esc_html_e('Open', 'community-calendar-study-rooms'); ?></option>
                     <option value="closed" <?php selected($hours['mode'], 'closed'); ?>><?php esc_html_e('Closed', 'community-calendar-study-rooms'); ?></option>
-                </select></td><td><input type="time" name="weekly_hours[<?php echo esc_attr($day); ?>][open]" value="<?php echo esc_attr($hours['open']); ?>" aria-label="<?php echo esc_attr(sprintf(__('%s opens', 'community-calendar-study-rooms'), $day_label)); ?>"> &ndash; <input type="time" name="weekly_hours[<?php echo esc_attr($day); ?>][close]" value="<?php echo esc_attr($hours['close']); ?>" aria-label="<?php echo esc_attr(sprintf(__('%s closes', 'community-calendar-study-rooms'), $day_label)); ?>"></td></tr>
+                </select></td><td><?php echo calsys_hours_input('weekly_hours[' . $day . '][open]', $hours['open'], sprintf(__('%s opens', 'community-calendar-study-rooms'), $day_label)); ?> &ndash; <?php echo calsys_hours_input('weekly_hours[' . $day . '][close]', $hours['close'], sprintf(__('%s closes', 'community-calendar-study-rooms'), $day_label)); ?></td></tr>
                 <?php endforeach; ?>
             </tbody></table>
             <h3><?php esc_html_e('Holiday and special hours', 'community-calendar-study-rooms'); ?></h3>

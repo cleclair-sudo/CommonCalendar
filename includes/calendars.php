@@ -98,7 +98,7 @@ function calsys_public_notice($popup = false) {
             foreach ($results as $result) {
                 $title = $result['title'] !== '' ? $result['title'] : sprintf(__('Event #%d', 'community-calendar-study-rooms'), $result['id']);
                 if ($result['starts_at'] !== '') {
-                    $title .= ' — ' . mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $result['starts_at']);
+                    $title .= ' — ' . mysql2date(get_option('date_format') . ' g:i A', $result['starts_at']);
                 }
                 $html .= '<li>' . esc_html($title) . ': ' . esc_html($statuses[$result['status']] ?? $statuses['invalid_registration']) . '</li>';
             }
@@ -401,7 +401,7 @@ function calsys_render_calendar($title, $events, $month, $calendar_type, $view =
                 <?php foreach ($print_events as $entry) : $event = $entry['event']; ?>
                     <article class="calsys-print-event">
                         <h2><?php echo esc_html($event->title); ?></h2>
-                        <p><?php echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $entry['start']->getTimestamp(), $timezone)); ?> &ndash; <?php echo esc_html(wp_date(get_option('date_format') . ' ' . get_option('time_format'), $entry['end']->getTimestamp(), $timezone)); ?></p>
+                        <p><?php echo esc_html(wp_date(get_option('date_format') . ' g:i A', $entry['start']->getTimestamp(), $timezone)); ?> &ndash; <?php echo esc_html(wp_date(get_option('date_format') . ' g:i A', $entry['end']->getTimestamp(), $timezone)); ?></p>
                         <?php if (!empty($event->category_label) && calsys_show_public_category_labels()) : ?>
                             <p><?php echo esc_html($event->category_label); ?></p>
                         <?php endif; ?>
@@ -457,10 +457,10 @@ function calsys_render_calendar($title, $events, $month, $calendar_type, $view =
                                         $event_type .= '-' . sanitize_html_class($event->entry_type);
                                     }
                                     $start_label = $entry['starts_at']->format('Y-m-d') === $date_key
-                                        ? wp_date(get_option('time_format'), $entry['starts_at']->getTimestamp(), $timezone)
+                                        ? wp_date('g:i A', $entry['starts_at']->getTimestamp(), $timezone)
                                         : '';
                                     $end_label = $entry['ends_at']->format('Y-m-d') === $date_key && $entry['ends_at']->format('H:i:s') !== '00:00:00'
-                                        ? wp_date(get_option('time_format'), $entry['ends_at']->getTimestamp(), $timezone)
+                                        ? wp_date('g:i A', $entry['ends_at']->getTimestamp(), $timezone)
                                         : '';
                                     if (!empty($event->all_day)) {
                                         $time_label = __('All day', 'community-calendar-study-rooms');
@@ -861,7 +861,7 @@ function calsys_upcoming_events_shortcode($attributes = array()) {
                         <?php echo wp_get_attachment_image((int) $event->image_id, 'medium', false, array('class' => 'calsys-upcoming-event-image', 'loading' => 'lazy')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
                     <?php endif; ?>
                     <div class="calsys-upcoming-event-content">
-                        <p class="calsys-upcoming-event-date"><?php echo esc_html(mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)); ?></p>
+                        <p class="calsys-upcoming-event-date"><?php echo esc_html(mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)); ?></p>
                         <h3><button type="button" class="calsys-event-title-link" data-calsys-open-event-details="<?php echo esc_attr($event->id); ?>"><?php echo esc_html($event->title); ?></button></h3>
                         <?php if (!empty($event->description)) : ?>
                             <p><?php echo esc_html(wp_trim_words(wp_strip_all_tags($event->description), 18)); ?></p>
@@ -976,7 +976,7 @@ function calsys_render_event_registration_forms($events) {
             foreach ($related as $related_event) {
                 $id = (int) $related_event->id;
                 $title = esc_html($related_event->title);
-                $date = esc_html(mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $related_event->starts_at));
+                $date = esc_html(mysql2date(get_option('date_format') . ' g:i A', $related_event->starts_at));
                 $series_markup .= '<li>';
                 if (isset($choices[$id])) {
                     $series_markup .= '<label class="calsys-checkbox-label"><input type="checkbox" name="series_events[]" value="' . esc_attr($id) . '"><span><strong>' . $title . '</strong><span class="calsys-series-date">' . $date . '</span></span></label>';
@@ -999,7 +999,7 @@ function calsys_render_event_registration_forms($events) {
         echo '<section class="calsys-action-card calsys-event-registration">';
         echo '<div class="calsys-action-card-heading"><div class="calsys-dialog-title-row"><h2>' . esc_html($event->title) . '</h2>';
         echo '<button class="calsys-dialog-close" type="button" data-calsys-close-registration aria-label="' . esc_attr__('Close event details', 'community-calendar-study-rooms') . '">&times;</button></div>';
-        echo '<p class="calsys-event-date">' . esc_html(mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)) . ' - ' . esc_html(mysql2date(get_option('time_format'), $event->ends_at)) . '</p></div>';
+        echo '<p class="calsys-event-date">' . esc_html(mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)) . ' - ' . esc_html(mysql2date('g:i A', $event->ends_at)) . '</p></div>';
         if (!empty($event->image_id)) {
             echo '<div class="calsys-event-detail-image">' . wp_get_attachment_image((int) $event->image_id, 'large', false, array('loading' => 'lazy')) . '</div>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         }
@@ -1132,7 +1132,7 @@ function calsys_events_shortcode() {
                 echo wp_get_attachment_image((int) $event->image_id, 'medium', false, array('class' => 'calsys-event-image', 'loading' => 'lazy')); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             }
             echo '<h2><button class="calsys-event-title-link" type="button" data-calsys-open-event-details="' . esc_attr($event->id) . '">' . esc_html($event->title) . '</button></h2>';
-            echo '<p class="calsys-event-date">' . esc_html(mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)) . ' - ' . esc_html(mysql2date(get_option('time_format'), $event->ends_at)) . '</p>';
+            echo '<p class="calsys-event-date">' . esc_html(mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)) . ' - ' . esc_html(mysql2date('g:i A', $event->ends_at)) . '</p>';
             $categories = calsys_event_categories();
             if (calsys_show_public_category_labels() && isset($categories[$event->category])) {
                 $category_data = $categories[$event->category];

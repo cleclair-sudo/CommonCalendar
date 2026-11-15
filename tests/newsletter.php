@@ -11,7 +11,7 @@ function esc_attr($value) { return esc_html($value); }
 function wp_unslash($value) { return $value; }
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function wp_date($format, $time, $timezone) { return (new DateTimeImmutable('@' . $time))->setTimezone($timezone)->format($format); }
-function get_option($key) { return $key === 'date_format' ? 'Y-m-d' : 'g:i a'; }
+function get_option($key) { return $key === 'date_format' ? 'Y-m-d' : 'H:i'; }
 function get_bloginfo($key) { return 'Library & Friends'; }
 function get_theme_mod($key) { return $GLOBALS['logo_id']; }
 function absint($value) { return abs((int) $value); }
@@ -78,7 +78,7 @@ expect(count($events) === 2 && strpos($wpdb->sql, "status = 'published'") !== fa
 expect($wpdb->args === array('2026-03-01 00:00:00', '2026-02-01 00:00:00'), 'Query must use exclusive month boundaries');
 $html = calsys_newsletter_html($start, $events, array(1 => 'logo', 2 => 'event-image'), 1);
 expect(strpos($html, 'Library &amp; Friends') !== false && strpos($html, 'Story &amp; craft') !== false, 'Site and event names must be escaped');
-expect(strpos($html, '2026-02-01 10:00 am - 2026-02-01 11:00 am') !== false && strpos($html, 'First line<br') !== false && strpos($html, 'Second line &amp; more') !== false, 'The newsletter must include event times and separate description paragraphs');
+expect(strpos($html, '2026-02-01 10:00 AM - 2026-02-01 11:00 AM') !== false && strpos($html, '2026-01-31 11:00 PM') !== false && strpos($html, 'First line<br') !== false && strpos($html, 'Second line &amp; more') !== false, 'The newsletter must include 12-hour event times and separate description paragraphs');
 expect(strpos($html, 'src="logo"') !== false && strpos($html, 'src="event-image"') !== false, 'The logo and event images must be included');
 expect(strpos($html, 'Draft') === false && strpos($html, 'Next month') === false, 'Draft and out-of-month events must be excluded');
 

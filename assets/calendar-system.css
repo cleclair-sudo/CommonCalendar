@@ -926,6 +926,14 @@
     margin: 0;
 }
 
+.calsys-datetime-fields {
+    min-width: 0;
+}
+
+.calsys-datetime-fields label + label {
+    margin-top: 0.5rem;
+}
+
 .calsys-form-wide {
     grid-column: 1 / -1;
 }

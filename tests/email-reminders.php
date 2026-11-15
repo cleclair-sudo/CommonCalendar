@@ -15,7 +15,7 @@ function is_email($value) { return filter_var($value, FILTER_VALIDATE_EMAIL); }
 function get_option($name, $default = false) { return $GLOBALS['options'][$name] ?? $default; }
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function current_time($format) { return '2026-11-12 10:00:00'; }
-function mysql2date($format, $date) { return $date; }
+function mysql2date($format, $date) { return date($format, strtotime($date)); }
 function wp_next_scheduled($hook) { return $GLOBALS['scheduled'][$hook] ?? false; }
 function wp_schedule_event($timestamp, $recurrence, $hook) { $GLOBALS['scheduled'][$hook] = $timestamp; return true; }
 function is_wp_error($value) { return false; }
@@ -136,7 +136,7 @@ $email_settings['from_email'] = 'calendar@example.org';
 $email_settings['logo_placement'] = $bottom ? 'bottom' : 'top';
 $email_settings['templates']['event_reminder'] = array('subject' => 'Soon: {event}', 'body' => "Hi {name}\n{datetime}");
 $email_settings['templates']['event_registration'] = array('subject' => 'Booked: {event}', 'body' => 'Hello {name}, {datetime}');
-$email_settings['templates']['room_approved'] = array('subject' => 'Approved: {room}', 'body' => "Hi {name}\n{comment}");
+$email_settings['templates']['room_approved'] = array('subject' => 'Approved: {room}', 'body' => "Hi {name}\n{start} to {end}\n{comment}");
 $email_settings['templates']['room_cancelled'] = array('subject' => 'Cancelled: {room}', 'body' => "{message}\n{comment}");
 $options = array('admin_email' => 'staff@example.org', 'date_format' => 'Y-m-d', 'time_format' => 'H:i',
     'calsys_settings' => array('email_settings' => $email_settings, 'notifications' => array('email_event_reminders' => $disabled ? 0 : 1)));
@@ -178,6 +178,7 @@ expect(strpos($wpdb->queries[0][0], 'r.reminder_opt_in = 1') !== false &&
     strpos($wpdb->queries[0][0], "e.status = 'published'") !== false &&
     $wpdb->queries[0][1] === array('2026-11-12 10:00:00', '2026-11-13 10:00:00'), 'Reminder query must select opted-in published events within 24 hours');
 expect($mail[0]['to'] === 'alex@example.org' && $mail[0]['subject'] === 'Soon: Story time', 'Reminder must use the configured template and recipient');
+expect(strpos($mail[0]['body'], '2026-11-13 9:00 AM') !== false, 'Reminder templates must use 12-hour times even when WordPress uses 24-hour time');
 expect((strpos($mail[0]['body'], '<img') < strpos($mail[0]['body'], 'Hi &lt;Alex&gt;')) !== $bottom, 'Configured logo placement and escaped personalized message must be rendered');
 expect(in_array('From: calendar@example.org', $mail[0]['headers'], true) &&
     in_array('Content-Type: text/html; charset=UTF-8', $mail[0]['headers'], true), 'Configured sender and HTML logo must be included in the mail headers');
@@ -190,6 +191,7 @@ $booking = (object) array('source_type' => '', 'requester_email' => 'alex@exampl
     'room_id' => 1, 'booking_date' => '2026-11-15', 'starts_at' => '10:00', 'ends_at' => '11:00');
 expect(calsys_notify_room_status($booking, 'approved', 'Please bring ID.'), 'Approved room email must be sent');
 expect($mail[2]['subject'] === 'Approved: Blue room' && strpos($mail[2]['body'], 'Please bring ID.') !== false, 'Approval template must deliver staff comments');
+expect(strpos($mail[2]['body'], '10:00 AM to 11:00 AM') !== false, 'Room email time placeholders must use 12-hour times');
 try {
     calsys_test_email();
     expect(false, 'Test email action must redirect');

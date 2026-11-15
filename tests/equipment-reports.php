@@ -14,6 +14,8 @@ function add_action() {}
 function wp_unslash($value) { return $value; }
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function __($value) { return $value; }
+function mysql2date($format, $value) { return date($format, strtotime($value)); }
+function get_option($name) { return 'Y-m-d'; }
 function calsys_table($name) { return 'wp_calsys_' . $name; }
 function expect($condition, $message) {
     if (!$condition) { fwrite(STDERR, $message . "\n"); exit(1); }
@@ -45,8 +47,14 @@ expect(calsys_report_dates('2026-02-29', '2026-03-01') === false, 'Invalid dates
 expect(calsys_report_dates('2026-03-02', '2026-03-01') === false, 'Reversed dates must be rejected');
 expect(calsys_report_csv_cell(" \t=1+1") === "' \t=1+1", 'Spreadsheet formulas must be neutralized');
 expect(calsys_report_csv_cell('Normal title') === 'Normal title', 'Ordinary CSV values must be preserved');
-$wpdb->result = array(array('equipment' => 'Projector'));
-expect(count(calsys_report_data('equipment', '2026-01-01', '2026-01-31')['rows']) === 1, 'Equipment report must return its query results');
+$wpdb->result = array(array('equipment' => 'Projector', 'starts_at' => '2026-01-05 13:37:00', 'ends_at' => '2026-01-05 14:00:00'));
+$equipment_report = calsys_report_data('equipment', '2026-01-01', '2026-01-31');
+expect(count($equipment_report['rows']) === 1 && $equipment_report['rows'][0]['starts_at'] === '2026-01-05 1:37 PM', 'Equipment report must format times in 12-hour form');
+$wpdb->result = array(array('date' => '2026-01-05', 'start_time' => '00:00:00', 'end_time' => '12:00:00'));
+$room_report = calsys_report_data('rooms', '2026-01-01', '2026-01-31');
+expect($room_report['rows'][0]['start_time'] === '12:00 AM' && $room_report['rows'][0]['end_time'] === '12:00 PM', 'Room reports must distinguish midnight and noon');
+$wpdb->result = array(array('equipment' => 'Projector', 'starts_at' => '2026-01-05 13:37:00', 'ends_at' => '2026-01-05 14:00:00'));
+calsys_report_data('equipment', '2026-01-01', '2026-01-31');
 expect(strpos($wpdb->sql, "r.status = 'approved'") !== false && strpos($wpdb->sql, 'r.starts_at < %s AND r.ends_at > %s') !== false, 'Equipment reports must include approved overlapping reservations');
 $wpdb->result = array();
 $wpdb->last_error = 'Simulated query failure';

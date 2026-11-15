@@ -72,12 +72,24 @@
     // Sets a named form control when it is present in the form.
     function setValue(form, name, value) {
         var field = form.elements.namedItem(name);
+        if (!field && (name === 'starts_at' || name === 'ends_at')) {
+            var dateField = form.elements.namedItem(name + '_date');
+            var timeField = form.elements.namedItem(name + '_time');
+            if (dateField && timeField) {
+                var parts = (value || '').split('T');
+                dateField.value = parts[0] || '';
+                timeField.value = parts[1] || '';
+            }
+            return;
+        }
         if (field) {
             if (value && field instanceof HTMLSelectElement && field.hasAttribute('data-calsys-room-time') &&
                 !Array.prototype.some.call(field.options, function (option) { return option.value === value; })) {
                 var previousTime = document.createElement('option');
                 previousTime.value = value;
-                previousTime.textContent = value;
+                var parts = value.split(':');
+                var hour = Number(parts[0]);
+                previousTime.textContent = (hour % 12 || 12) + ':' + parts[1] + (hour < 12 ? ' AM' : ' PM');
                 previousTime.setAttribute('data-calsys-existing-time', '');
                 field.appendChild(previousTime);
             }

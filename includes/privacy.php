@@ -54,7 +54,9 @@ function calsys_export_personal_data($email, $page = 1) {
                     array('name' => __('Name', 'community-calendar-study-rooms'), 'value' => $row->requester_name),
                     array('name' => __('Email', 'community-calendar-study-rooms'), 'value' => $row->requester_email),
                     array('name' => __('Room', 'community-calendar-study-rooms'), 'value' => $row->room_name),
-                    array('name' => __('Date and time', 'community-calendar-study-rooms'), 'value' => $row->booking_date . ' ' . $row->starts_at . ' - ' . $row->ends_at),
+                    array('name' => __('Date and time', 'community-calendar-study-rooms'), 'value' => $row->booking_date . ' ' .
+                        mysql2date('g:i A', $row->booking_date . ' ' . $row->starts_at) . ' - ' .
+                        mysql2date('g:i A', $row->booking_date . ' ' . $row->ends_at)),
                     array('name' => __('Reason', 'community-calendar-study-rooms'), 'value' => $row->request_reason),
                     array('name' => __('Status', 'community-calendar-study-rooms'), 'value' => $row->status),
                 );

@@ -315,6 +315,7 @@ $events = array(
     (object) array('id' => 5, 'title' => 'Next month', 'starts_at' => '2026-12-01 10:00:00', 'ends_at' => '2026-12-01 11:00:00', 'all_day' => 0, 'calendar_type' => 'event'),
 );
 $html = calsys_render_calendar('Calendar', $events, $month, 'combined', 'month', $selected, true);
+expect(strpos($html, '10:00 AM') !== false && strpos($html, '11:00 AM') !== false, 'Calendar times must use AM/PM even when WordPress uses 24-hour time');
 expect((bool) preg_match('/<div class="calsys-category-filter-actions">\s*<button type="submit">Apply filters<\/button>\s*<button type="button" data-calsys-print="calendar">Print calendar<\/button>\s*<button type="button" data-calsys-print="events">Print events list<\/button>/', $html) &&
     substr_count($html, 'data-calsys-print="calendar"') === 1, 'Event calendar print controls must appear beside apply without submitting filters');
 preg_match('/<div class="calsys-print-events" hidden>(.*?)<\/div>/s', $html, $match);

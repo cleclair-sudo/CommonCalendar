@@ -226,7 +226,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
             sprintf(__('Waitlist joined: %s', 'community-calendar-study-rooms'), $locked_event->title),
             sprintf(__('Hello %1$s, you are on the waitlist for %2$s. We will email you if a place becomes available.', 'community-calendar-study-rooms'), $name, $locked_event->title),
             'waitlist_joined',
-            array('name' => $name, 'event' => $locked_event->title, 'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $locked_event->starts_at))
+            array('name' => $name, 'event' => $locked_event->title, 'datetime' => mysql2date(get_option('date_format') . ' g:i A', $locked_event->starts_at))
         );
         $result['status'] = $sent ? 'waitlist_joined' : 'waitlist_joined_email_failed';
         return $result;
@@ -255,10 +255,10 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
                 __('Hello %1$s, your registration for %2$s is confirmed for %3$s.', 'community-calendar-study-rooms'),
                 $name,
                 $event->title,
-                mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)
+                mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)
             ),
             'event_registration',
-            array('name' => $name, 'event' => $event->title, 'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at))
+            array('name' => $name, 'event' => $event->title, 'datetime' => mysql2date(get_option('date_format') . ' g:i A', $event->starts_at))
         );
     }
     $registration_recipients = calsys_decode_registration_recipients($event->registration_recipients ?? '');
@@ -276,7 +276,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
             $event->title,
             $name,
             strtolower($email),
-            mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)
+            mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)
         );
         if ($answer_lines) {
             $message .= "\n\n" . __('Registration details:', 'community-calendar-study-rooms') . "\n" . implode("\n", $answer_lines);
@@ -287,7 +287,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
             $message,
             'event_registration_staff',
             array('name' => $name, 'email' => strtolower($email), 'event' => $event->title,
-                'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at),
+                'datetime' => mysql2date(get_option('date_format') . ' g:i A', $event->starts_at),
                 'answers' => implode("\n", $answer_lines))
         );
     }
@@ -388,11 +388,11 @@ function calsys_send_due_event_reminders() {
                     __('Hello %1$s, this is a reminder that %2$s starts on %3$s.', 'community-calendar-study-rooms'),
                     $registration->name,
                     $registration->title,
-                    mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $registration->starts_at)
+                    mysql2date(get_option('date_format') . ' g:i A', $registration->starts_at)
                 ),
                 'event_reminder',
                 array('name' => $registration->name, 'event' => $registration->title,
-                    'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $registration->starts_at))
+                    'datetime' => mysql2date(get_option('date_format') . ' g:i A', $registration->starts_at))
             );
             if (!$sent) {
                 $reset = $wpdb->update(

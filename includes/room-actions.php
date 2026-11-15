@@ -184,18 +184,20 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         $status_text = $booking_status === 'approved'
             ? __('confirmed', 'community-calendar-study-rooms')
             : __('awaiting staff approval', 'community-calendar-study-rooms');
+        $start_label = mysql2date('g:i A', $booking['date'] . ' ' . $booking['start']);
+        $end_label = mysql2date('g:i A', $booking['date'] . ' ' . $booking['end']);
         $booking_summary = sprintf(
             /* translators: 1: room, 2: date, 3: start time, 4: end time, 5: booking status, 6: reason */
             __('Room: %1$s. Date: %2$s. Time: %3$s to %4$s. Status: %5$s. Reason: %6$s', 'community-calendar-study-rooms'),
             $booking['room_name'],
             $booking['date'],
-            $booking['start'],
-            $booking['end'],
+            $start_label,
+            $end_label,
             $status_text,
             $request_reason !== '' ? $request_reason : __('Not provided', 'community-calendar-study-rooms')
         );
         $email_context = array('name' => $booking['name'], 'room' => $booking['room_name'], 'date' => $booking['date'],
-            'start' => $booking['start'], 'end' => $booking['end']);
+            'start' => $start_label, 'end' => $end_label);
         if ($settings['notifications']['notify_staff_room_requests']) {
             calsys_send_email(
                 $settings['notifications']['staff_email'],
@@ -293,21 +295,23 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
         error_log('CommonsCal: unable to load room name for status email: ' . $wpdb->last_error);
         return false;
     }
+    $start_label = mysql2date('g:i A', $booking->booking_date . ' ' . $booking->starts_at);
+    $end_label = mysql2date('g:i A', $booking->booking_date . ' ' . $booking->ends_at);
     $message = sprintf(
             __("Hello %1\$s,\n\n%2\$s.\nRoom: %3\$s\nDate: %4\$s\nTime: %5\$s to %6\$s", 'community-calendar-study-rooms'),
             $booking->requester_name,
             $subjects[$status],
             $room_name,
             $booking->booking_date,
-            $booking->starts_at,
-            $booking->ends_at
+            $start_label,
+            $end_label
         );
     if ($comment !== '' && $status !== 'cancelled') {
         $message .= "\n\n" . __('Staff comment:', 'community-calendar-study-rooms') . "\n" . $comment;
     }
     return calsys_send_email($booking->requester_email, $subjects[$status], $message, 'room_' . $status,
         array('name' => $booking->requester_name, 'room' => $room_name, 'date' => $booking->booking_date,
-            'start' => $booking->starts_at, 'end' => $booking->ends_at, 'comment' => $comment));
+            'start' => $start_label, 'end' => $end_label, 'comment' => $comment));
 }
 
 /** Approves or denies a pending room request after permission and conflict checks. */

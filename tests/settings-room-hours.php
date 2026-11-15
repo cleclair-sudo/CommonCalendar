@@ -70,6 +70,8 @@ if (($argv[1] ?? '') === 'reload') {
     ob_start();
     calsys_admin_settings_page();
     $html = ob_get_clean();
+    expect(strpos($html, 'value="9:00 AM"') !== false && strpos($html, 'value="5:00 PM"') !== false &&
+        strpos($html, 'type="time"') === false, 'Opening hours must be displayed in 12-hour format');
     preg_match('/<input name="notifications\[email_event_registrant\]"[^>]*>/', $html, $confirmation);
     preg_match('/<input name="notifications\[email_event_reminders\]"[^>]*>/', $html, $reminder);
     expect(strpos($confirmation[0], 'checked') === false && strpos($reminder[0], 'checked') !== false, 'The displayed controls must reflect the independently saved settings');
@@ -90,7 +92,7 @@ $_POST = array(
     'privacy' => $defaults['privacy'],
     'room_schedule_present' => '1',
     'weekly_hours' => array_fill(0, 7, array('mode' => 'unrestricted', 'open' => '', 'close' => '')),
-    'holiday_hours' => array(array('date' => '2026-12-25', 'mode' => 'open', 'open' => '10:00', 'close' => '13:00', 'annual' => '1')),
+    'holiday_hours' => array(array('date' => '2026-12-25', 'mode' => 'open', 'open' => '10:00 AM', 'close' => '1:00 PM', 'annual' => '1')),
 );
 $_POST['event_registration']['default_fields_present'] = '1';
 foreach ($defaults['staff_types'] as $key => $type) {
@@ -105,7 +107,7 @@ $_POST['email_settings']['logo_placement'] = 'bottom';
 $_POST['email_settings']['templates']['event_reminder'] = array('subject' => 'Coming up: {event}', 'body' => 'Hi {name}, {datetime}');
 $_POST['notifications']['email_event_reminders'] = '1';
 $_POST['notifications']['email_event_registrant'] = '1';
-$_POST['weekly_hours'][1] = array('mode' => 'open', 'open' => '09:00', 'close' => '17:00');
+$_POST['weekly_hours'][1] = array('mode' => 'open', 'open' => '9:00 AM', 'close' => '5:00 PM');
 $_POST['weekly_hours'][0] = array('mode' => 'closed', 'open' => '', 'close' => '');
 
 expect(save_settings() === 'settings_saved', 'Valid opening hours must save');
@@ -115,7 +117,7 @@ expect($saved['notifications']['email_event_registrant'] === 1 && $saved['notifi
 unset($_POST['notifications']['email_event_registrant']);
 expect(save_settings() === 'settings_saved', 'Disabling the confirmation must save');
 $saved = $options['calsys_settings'];
-expect($saved['booking_rules']['weekly_hours'][1] === $_POST['weekly_hours'][1], 'Weekly opening hours must persist');
+expect($saved['booking_rules']['weekly_hours'][1] === array('mode' => 'open', 'open' => '09:00', 'close' => '17:00'), 'Weekly opening hours must persist in canonical form');
 expect($saved['booking_rules']['weekly_hours'][0]['mode'] === 'closed', 'Closed weekdays must persist');
 expect($saved['booking_rules']['holiday_hours'][0]['annual'] === 1, 'Recurring special hours must persist');
 expect($saved['notifications']['email_event_reminders'] === 1 && $saved['email_settings'] === $_POST['email_settings'], 'Reminder, sender, logo, and email templates must persist');

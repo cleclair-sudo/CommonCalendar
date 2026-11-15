@@ -132,8 +132,8 @@ function calsys_front_event_form() {
                 <section class="calsys-form-section">
                     <h3><?php esc_html_e('Date and repeat', 'community-calendar-study-rooms'); ?></h3>
                     <div class="calsys-form-grid">
-                    <p><label><?php esc_html_e('Starts', 'community-calendar-study-rooms'); ?><input name="starts_at" type="datetime-local" required></label></p>
-                    <p><label><?php esc_html_e('Ends', 'community-calendar-study-rooms'); ?><input name="ends_at" type="datetime-local" required></label></p>
+                    <?php echo calsys_datetime_fields('starts_at', __('Starts', 'community-calendar-study-rooms')); ?>
+                    <?php echo calsys_datetime_fields('ends_at', __('Ends', 'community-calendar-study-rooms')); ?>
                     <p class="calsys-form-wide" data-calsys-series-scope hidden><label><?php esc_html_e('Apply changes to', 'community-calendar-study-rooms'); ?>
                         <select name="event_scope"><option value="one"><?php esc_html_e('This event only', 'community-calendar-study-rooms'); ?></option><option value="future"><?php esc_html_e('This and future recurring events', 'community-calendar-study-rooms'); ?></option><option value="all"><?php esc_html_e('All recurring events', 'community-calendar-study-rooms'); ?></option></select></label>
                         <span class="description"><?php esc_html_e('All shown fields, including room and equipment, replace the values for selected events. Dates shift by the same amount; registrations stay with each event.', 'community-calendar-study-rooms'); ?></span></p>
@@ -219,8 +219,8 @@ function calsys_front_staff_form() {
                     <p><label><?php esc_html_e('Title', 'community-calendar-study-rooms'); ?><input name="title" type="text" maxlength="200" required></label></p>
                     <p><label><?php esc_html_e('Your initials', 'community-calendar-study-rooms'); ?><input name="staff_initials" type="text" maxlength="10" required></label><span data-calsys-saved-initials></span></p>
                     <p><label><?php esc_html_e('Type', 'community-calendar-study-rooms'); ?><select name="entry_type"><?php foreach ($types as $key => $label) : ?><option value="<?php echo esc_attr($key); ?>"><?php echo esc_html($label); ?></option><?php endforeach; ?></select></label></p>
-                    <p><label><?php esc_html_e('Starts', 'community-calendar-study-rooms'); ?><input name="starts_at" type="datetime-local" required></label></p>
-                    <p><label><?php esc_html_e('Ends', 'community-calendar-study-rooms'); ?><input name="ends_at" type="datetime-local" required></label></p>
+                    <?php echo calsys_datetime_fields('starts_at', __('Starts', 'community-calendar-study-rooms')); ?>
+                    <?php echo calsys_datetime_fields('ends_at', __('Ends', 'community-calendar-study-rooms')); ?>
                     <p class="calsys-form-wide"><label class="calsys-checkbox-label"><input name="all_day" type="checkbox" value="1"> <?php esc_html_e('All day (uses the start and end dates)', 'community-calendar-study-rooms'); ?></label></p>
                     <p class="calsys-form-wide"><label><?php esc_html_e('Room (optional)', 'community-calendar-study-rooms'); ?>
                         <select name="room_id" data-calsys-room-select>
@@ -249,18 +249,34 @@ function calsys_front_staff_form() {
     return ob_get_clean();
 }
 
-/** Builds quarter-hour options, respecting stricter public booking increments. */
-function calsys_room_time_options($increment = 0) {
+/** Builds time options with 12-hour labels and machine-readable 24-hour values. */
+function calsys_room_time_options($increment = 0, $step = 15, $selected_time = '') {
+    static $cache = array();
+    $cache_key = $increment . ':' . $step . ':' . $selected_time;
+    if (isset($cache[$cache_key])) {
+        return $cache[$cache_key];
+    }
     $html = '<option value="">' . esc_html__('Choose a time', 'community-calendar-study-rooms') . '</option>';
-    for ($minutes = 0; $minutes < 1440; $minutes += 15) {
+    for ($minutes = 0; $minutes < 1440; $minutes += $step) {
         if ($increment > 0 && $minutes % $increment !== 0) {
             continue;
         }
         $time = sprintf('%02d:%02d', (int) floor($minutes / 60), $minutes % 60);
         $date = DateTimeImmutable::createFromFormat('!Y-m-d H:i', '2000-01-01 ' . $time, wp_timezone());
-        $html .= '<option value="' . esc_attr($time) . '">' . esc_html(wp_date(get_option('time_format'), $date->getTimestamp(), wp_timezone())) . '</option>';
+        $html .= '<option value="' . esc_attr($time) . '"' . ($time === $selected_time ? ' selected' : '') . '>' . esc_html(wp_date('g:i A', $date->getTimestamp(), wp_timezone())) . '</option>';
     }
+    $cache[$cache_key] = $html;
     return $html;
+}
+
+/** Renders separate date and 12-hour time controls for an event or staff entry. */
+function calsys_datetime_fields($name, $label, $value = '') {
+    $date = $value !== '' ? substr($value, 0, 10) : '';
+    $time = $value !== '' ? substr($value, 11, 5) : '';
+    return '<fieldset class="calsys-datetime-fields"><legend>' . esc_html($label) . '</legend>' .
+        '<label>' . esc_html__('Date', 'community-calendar-study-rooms') . '<input type="date" name="' . esc_attr($name) . '_date" value="' . esc_attr($date) . '" required></label>' .
+        '<label>' . esc_html__('Time', 'community-calendar-study-rooms') . '<select name="' . esc_attr($name) . '_time" required>' .
+        calsys_room_time_options(0, 1, $time) . '</select></label></fieldset>';
 }
 
 /** Adds the configuration needed for live room-availability checks. */

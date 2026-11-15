@@ -50,6 +50,16 @@ function calsys_report_data($type, $start, $end) {
         error_log('CommonsCal: unable to load ' . $type . ' report: ' . $wpdb->last_error);
         return false;
     }
+    foreach ($rows as &$row) {
+        if ($type === 'rooms') {
+            $row['start_time'] = mysql2date('g:i A', $row['date'] . ' ' . $row['start_time']);
+            $row['end_time'] = mysql2date('g:i A', $row['date'] . ' ' . $row['end_time']);
+        } else {
+            $row['starts_at'] = mysql2date(get_option('date_format') . ' g:i A', $row['starts_at']);
+            $row['ends_at'] = mysql2date(get_option('date_format') . ' g:i A', $row['ends_at']);
+        }
+    }
+    unset($row);
     return array('headers' => $headers, 'rows' => $rows);
 }
 

@@ -27,7 +27,10 @@ function calsys_validate_staff_initials($value) {
     return $value !== '' && strlen($value) <= 40 ? $value : false;
 }
 function wp_kses_post($value) { return $value; }
-function calsys_parse_datetime($value) { return str_replace('T', ' ', $value) . ':00'; }
+function calsys_parse_datetime($value) {
+    if (is_array($value)) { $value = implode('T', $value); }
+    return str_replace('T', ' ', $value) . ':00';
+}
 function absint($value) { return abs((int) $value); }
 function sanitize_key($value) { return $value; }
 function calsys_event_categories() { return array('adult' => 'Adult'); }
@@ -97,4 +100,9 @@ $_POST['series_name'] = ' ';
 try { calsys_save_event(); expect(false, 'Empty series name was accepted'); } catch (EventTestRedirect $redirect) {
     expect($redirect->notice === 'invalid' && count($wpdb->series) === 1 && count($wpdb->writes) === 7, 'Invalid series must not be created');
 }
+$_POST = $post;
+unset($_POST['starts_at'], $_POST['ends_at']);
+$_POST += array('starts_at_date' => '2026-12-02', 'starts_at_time' => '13:37', 'ends_at_date' => '2026-12-02', 'ends_at_time' => '14:00');
+try { calsys_save_event(); } catch (EventTestRedirect $redirect) { expect($redirect->notice === 'saved', 'Split event datetime fields must save'); }
+expect($wpdb->writes[7]['starts_at'] === '2026-12-02 13:37:00', 'Split event datetime fields must retain the selected minute');
 echo "Event initials passed.\n";

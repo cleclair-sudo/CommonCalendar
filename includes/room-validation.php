@@ -5,6 +5,15 @@ if (!defined('ABSPATH')) {
 
 /** Parses a submitted local datetime and returns its database representation. */
 function calsys_parse_datetime($value) {
+    if (is_array($value)) {
+        if (count($value) !== 2 || !is_string($value[0] ?? null) || !is_string($value[1] ?? null)) {
+            return false;
+        }
+        $value = $value[0] . 'T' . $value[1];
+    }
+    if (!is_string($value)) {
+        return false;
+    }
     $value = sanitize_text_field(wp_unslash($value));
     $date = DateTimeImmutable::createFromFormat('!Y-m-d\TH:i', $value, wp_timezone());
     $errors = DateTimeImmutable::getLastErrors();

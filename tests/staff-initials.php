@@ -64,7 +64,7 @@ function get_option($name, $default = false) {
     if ($name === 'admin_email') { return 'admin@example.org'; }
     if ($name === 'time_format') { return 'H:i'; }
     if ($name === 'calsys_settings') {
-        return array('notifications' => array('notify_staff_room_requests' => 0, 'email_room_requester' => 0));
+        return array('notifications' => array('notify_staff_room_requests' => 1, 'email_room_requester' => 1));
     }
     return $default;
 }
@@ -85,6 +85,11 @@ function wp_create_nonce() { return 'nonce'; }
 function selected($value, $expected) { if ($value === $expected) { echo 'selected'; } }
 function checked($value) { if ($value) { echo 'checked'; } }
 function wp_date($format, $timestamp, $timezone) { return (new DateTimeImmutable('@' . $timestamp))->setTimezone($timezone)->format($format); }
+function mysql2date($format, $value) { return date($format, strtotime($value)); }
+function wp_mail($to, $subject, $body, $headers = array()) {
+    $GLOBALS['sent_mail'][] = compact('to', 'subject', 'body');
+    return true;
+}
 function get_privacy_policy_url() { return ''; }
 function calsys_equipment_fields() { return ''; }
 function absint($value) { return abs((int) $value); }
@@ -102,7 +107,10 @@ function calsys_normalize_room_schedule($weekly, $holidays) { return array('week
 function calsys_action_redirect($frontend, $page, $notice, $skipped = 0) { throw new InitialsRedirect($notice); }
 function calsys_frontend_redirect($notice) { throw new InitialsRedirect($notice); }
 function calsys_posted_equipment() { return array(); }
-function calsys_parse_datetime($value) { return str_replace('T', ' ', $value) . ':00'; }
+function calsys_parse_datetime($value) {
+    if (is_array($value)) { $value = implode('T', $value); }
+    return str_replace('T', ' ', $value) . ':00';
+}
 function calsys_lock_linked_room_ids() { return true; }
 function calsys_sync_linked_room_reservations($type, $id, $room, $start, $end, $allow, $initials) {
     $GLOBALS['linked_initials'] = $initials;
@@ -113,7 +121,7 @@ function calsys_booking_conflict() { return false; }
 function calsys_room_is_within_hours() { return true; }
 function calsys_valid_booking_input() {
     return array('room_id' => 1, 'room_name' => 'Room', 'name' => 'Patron', 'email' => 'test@example.org',
-        'date' => '2026-12-01', 'start' => '10:00:00', 'end' => '11:00:00');
+        'date' => '2026-12-01', 'start' => '13:37:00', 'end' => '14:00:00');
 }
 function calsys_save_event($frontend) { throw new InitialsRedirect('event'); }
 
@@ -124,6 +132,7 @@ require __DIR__ . '/../includes/frontend-forms.php';
 
 $wpdb = new InitialsDatabase();
 $staff = true;
+$sent_mail = array();
 $schemas = array();
 $updated_options = array();
 foreach (array('bookings', 'staff_calendar') as $missing) {
@@ -181,6 +190,8 @@ try { calsys_save_booking(false); expect(false, 'Expected public booking redirec
     expect($result->notice === 'room_request_sent', 'Public room requests must not require initials');
 }
 expect(!array_key_exists('staff_initials', $wpdb->writes[4][1]), 'Public requests must not supply staff initials');
+expect(count($sent_mail) === 2 && strpos($sent_mail[0]['body'], '1:37 PM to 2:00 PM') !== false &&
+    strpos($sent_mail[1]['body'], '1:37 PM to 2:00 PM') !== false, 'Public room request emails must use 12-hour times for staff and requesters');
 
 $_POST = array('calsys_frontend' => '1', 'staff_booking' => '1', 'public_event' => '1', 'room_id' => '1',
     'booking_date' => '2026-12-01', 'starts_at' => '10:00', 'ends_at' => '11:00', 'staff_initials' => 'IJ');
@@ -194,6 +205,16 @@ expect(substr_count($room_form, 'name="staff_initials"') === 1 &&
     strpos($room_form, 'name="staff_initials"') < strpos($room_form, 'data-calsys-public-event-fields'),
     'The staff room form must have one required initials input outside the conditional public event fields');
 expect(strpos($staff_form, 'name="staff_initials" type="text" maxlength="10" required') !== false, 'The staff entry form must require initials');
+expect(strpos($staff_form, 'name="starts_at_date"') !== false && strpos($staff_form, 'name="starts_at_time"') !== false &&
+    strpos($staff_form, 'value="00:00">12:00 AM') !== false && strpos($staff_form, 'value="12:00">12:00 PM') !== false &&
+    strpos($staff_form, 'value="13:37">1:37 PM') !== false, 'Time controls must offer every minute with 12-hour labels');
+$_POST = $staff_post;
+unset($_POST['starts_at'], $_POST['ends_at']);
+$_POST += array('starts_at_date' => '2026-12-02', 'starts_at_time' => '13:37', 'ends_at_date' => '2026-12-02', 'ends_at_time' => '14:00');
+try { calsys_save_staff_entry(); expect(false, 'Expected staff creation redirect'); } catch (InitialsRedirect $result) {
+    expect($result->notice === 'staff_event_saved', 'Split staff datetime fields must save');
+}
+expect($wpdb->writes[5][1]['starts_at'] === '2026-12-02 13:37:00', 'Split staff datetime fields must retain the selected minute');
 $staff = false;
 expect(strpos(calsys_front_room_form(), 'name="staff_initials"') === false, 'The public room request form must not ask for staff initials');
 echo "Staff initials passed.\n";

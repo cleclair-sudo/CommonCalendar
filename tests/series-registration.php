@@ -75,8 +75,8 @@ function current_time($format) { return '2026-11-12 12:00:00'; }
 function wp_generate_uuid4() { return '00000000-0000-4000-8000-000000000001'; }
 function set_transient($key, $value, $expiration) { $GLOBALS['registration_results'] = $value; return !empty($GLOBALS['transient_succeeds']); }
 function __($value) { return $value; }
-function get_option($name) { return 'Y-m-d'; }
-function mysql2date($format, $date) { return $date; }
+function get_option($name) { return $name === 'time_format' ? 'H:i' : 'Y-m-d'; }
+function mysql2date($format, $date) { return date($format, strtotime($date)); }
 function calsys_send_email($recipient, $subject, $message, $type, $context) {
     expect(!$GLOBALS['wpdb']->in_transaction, 'Confirmation must be sent only after the registration commits');
     $GLOBALS['emails'][] = compact('recipient', 'subject', 'message', 'type', 'context');
@@ -149,8 +149,9 @@ try { calsys_register_event(); expect(false, 'Expected confirmation redirect'); 
     expect($redirect->notice === 'registration_complete', 'Successful confirmation must report registration success');
 }
 expect(count($emails) === 1 && $emails[0]['recipient'] === 'alex@example.org' && $emails[0]['type'] === 'event_registration' &&
-    $emails[0]['context']['event'] === 'Event 1' && strpos($emails[0]['message'], '2026-12-01 10:00:00') !== false,
-    'A successful single registration must immediately send its confirmation with event details');
+    $emails[0]['context']['event'] === 'Event 1' && $emails[0]['context']['datetime'] === '2026-12-01 10:00 AM' &&
+    strpos($emails[0]['message'], '2026-12-01 10:00 AM') !== false,
+    'A successful single registration must immediately send its confirmation with 12-hour event details');
 $_POST = array('event_id' => '1', 'name' => 'Taylor', 'email' => 'taylor@example.org', 'series_events' => array('2', '3'));
 $failed_email_events = array('Event 2');
 try { calsys_register_event(); expect(false, 'Expected multi-event redirect'); } catch (RegistrationRedirect $redirect) {

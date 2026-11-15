@@ -3,6 +3,30 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+/** Converts an entered 12-hour time or a stored 24-hour time to HH:MM. */
+function calsys_normalize_hours_time($value) {
+    if (!is_string($value)) {
+        return false;
+    }
+    if (preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $value)) {
+        return $value;
+    }
+    if (!preg_match('/^(0?[1-9]|1[0-2]):([0-5]\d)\s*([ap]m)$/i', trim($value), $matches)) {
+        return false;
+    }
+    $hour = (int) $matches[1] % 12 + (strtolower($matches[3]) === 'pm' ? 12 : 0);
+    return sprintf('%02d:%s', $hour, $matches[2]);
+}
+
+/** Formats a stored opening-hours value for its 12-hour text input. */
+function calsys_hours_input_value($value) {
+    if ($value === '') {
+        return '';
+    }
+    $hour = (int) substr($value, 0, 2);
+    return sprintf('%d:%s %s', $hour % 12 ?: 12, substr($value, 3, 2), $hour < 12 ? 'AM' : 'PM');
+}
+
 /** Validates one opening-hours interval or closed/unrestricted day. */
 function calsys_normalize_hours($hours, $allow_unrestricted = true, $reject_unused_times = false) {
     if (!is_array($hours) || !isset($hours['mode']) || !is_string($hours['mode']) ||
@@ -15,11 +39,9 @@ function calsys_normalize_hours($hours, $allow_unrestricted = true, $reject_unus
         }
         return array('mode' => $hours['mode'], 'open' => '', 'close' => '');
     }
-    $open = $hours['open'] ?? '';
-    $close = $hours['close'] ?? '';
-    if (!is_string($open) || !is_string($close) ||
-        !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $open) ||
-        !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $close) || $open >= $close) {
+    $open = calsys_normalize_hours_time($hours['open'] ?? '');
+    $close = calsys_normalize_hours_time($hours['close'] ?? '');
+    if ($open === false || $close === false || $open >= $close) {
         return false;
     }
     return array('mode' => 'open', 'open' => $open, 'close' => $close);

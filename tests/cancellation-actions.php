@@ -43,7 +43,7 @@ function is_email($value) { return filter_var($value, FILTER_VALIDATE_EMAIL); }
 function wp_unslash($value) { return $value; }
 function get_option($name, $default = false) { return $GLOBALS['options'][$name] ?? $default; }
 function current_time($format) { return '2026-11-14 10:00:00'; }
-function mysql2date($format, $date) { return $date; }
+function mysql2date($format, $date) { return date($format, strtotime($date)); }
 function calsys_require_staff() { if (empty($GLOBALS['authorized'])) { throw new RuntimeException('Not authorized'); } }
 function check_admin_referer($action) { $GLOBALS['nonce_action'] = $action; }
 function calsys_lock_linked_room_ids() { return true; }
@@ -91,7 +91,7 @@ expect(delete_event_with("Weather <b>closure</b>") === 'event_deleted', 'An ongo
 expect(count($mail) === 3 && array_column($mail, 'to') === array('alex@example.org', 'pat@example.org', 'sam@example.org'), 'Registered and waitlisted attendees must each receive an email');
 foreach ($mail as $message) {
     expect(strpos($message['body'], 'Event cancelled: Story time') !== false && strpos($message['body'], 'Weather closure') !== false &&
-        strpos($message['body'], 'scheduled for 2026-11-14 09:00:00 has been cancelled') !== false &&
+        strpos($message['body'], 'scheduled for 2026-11-14 9:00 AM has been cancelled') !== false &&
         strpos($message['body'], '<b>') === false, 'An older custom template must include cancellation details and the sanitized message');
 }
 $mail = array();
@@ -116,7 +116,8 @@ expect(delete_event_with(str_repeat('x', 16001)) === 'invalid' && !$wpdb->deleti
 $wpdb->booking->source_type = 'private';
 expect(delete_room_with("Closed <b>today</b>") === 'room_booking_deleted' && count($mail) === 1 &&
     $mail[0]['to'] === 'alex@example.org' && substr_count($mail[0]['body'], 'Closed today') === 1 &&
-    strpos($mail[0]['body'], 'Your room booking was cancelled') !== false, 'Staff-created private bookings must notify the contact once with the cancellation details');
+    strpos($mail[0]['body'], 'Your room booking was cancelled') !== false &&
+    strpos($mail[0]['body'], '10:00 AM to 11:00 AM') !== false, 'Staff-created private bookings must notify the contact once with 12-hour cancellation details');
 $mail = array();
 $wpdb->booking->source_type = '';
 $fail_email = 'alex@example.org';

@@ -106,7 +106,7 @@ function calsys_newsletter_image($attachment_id) {
 /** Builds the newsletter HTML using only escaped event content and converted images. */
 function calsys_newsletter_html($start, $events, $images, $logo_id) {
     $date_format = get_option('date_format');
-    $time_format = get_option('time_format');
+    $time_format = 'g:i A';
     $timezone = wp_timezone();
     ob_start();
     ?>

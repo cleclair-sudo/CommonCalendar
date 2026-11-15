@@ -3,6 +3,8 @@
 define('ABSPATH', __DIR__ . '/');
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function add_action() {}
+function wp_unslash($value) { return $value; }
+function sanitize_text_field($value) { return trim($value); }
 function calsys_table($name) { return 'wp_calsys_' . $name; }
 function __($value) { return $value; }
 function sanitize_email($value) { return $value; }
@@ -13,6 +15,17 @@ function expect($condition, $message) {
 }
 require __DIR__ . '/../includes/room-hours.php';
 require __DIR__ . '/../includes/room-validation.php';
+
+expect(calsys_normalize_hours_time('12:00 AM') === '00:00' && calsys_normalize_hours_time('12:00 PM') === '12:00' &&
+    calsys_normalize_hours_time('1:37 pm') === '13:37' && calsys_normalize_hours_time('17:00') === '17:00', 'Opening hours must normalize noon, midnight, and legacy times');
+expect(calsys_normalize_hours_time('13:00 PM') === false && calsys_normalize_hours_time('0:00 AM') === false &&
+    calsys_normalize_hours_time(array('9:00 AM')) === false, 'Invalid opening-hour times must be rejected');
+expect(calsys_hours_input_value('00:00') === '12:00 AM' && calsys_hours_input_value('12:00') === '12:00 PM' &&
+    calsys_hours_input_value('13:37') === '1:37 PM', 'Stored opening hours must display in 12-hour format');
+expect(calsys_parse_datetime(array('2026-12-01', '13:37')) === '2026-12-01 13:37:00' &&
+    calsys_parse_datetime('2026-12-01T13:37') === '2026-12-01 13:37:00', 'Separate and legacy datetime submissions must preserve arbitrary minutes');
+expect(calsys_parse_datetime(array('2026-12-01', array('13:37'))) === false &&
+    calsys_parse_datetime(array('2026-02-29', '13:37')) === false, 'Invalid split datetime submissions must be rejected');
 
 $weekly = array_fill(0, 7, array('mode' => 'open', 'open' => '09:00', 'close' => '17:00'));
 $weekly[0] = array('mode' => 'closed', 'open' => '', 'close' => '');

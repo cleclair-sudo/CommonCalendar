@@ -55,14 +55,14 @@
 
         var $holidays = $('#calsys-holiday-hours');
         var $hoursTables = $('#calsys-weekly-hours, #calsys-holiday-hours');
-        $hoursTables.on('input change', 'input[type="time"]', function () {
+        $hoursTables.on('input change', '[data-calsys-hours-input]', function () {
             if (this.value) {
                 $(this).closest('tr').find('select').val('open');
             }
         });
         $hoursTables.on('change', 'select', function () {
             if (this.value !== 'open') {
-                $(this).closest('tr').find('input[type="time"]').val('');
+                $(this).closest('tr').find('[data-calsys-hours-input]').val('');
             }
         });
         var nextHolidayIndex = $holidays.find('.calsys-holiday-row').length;

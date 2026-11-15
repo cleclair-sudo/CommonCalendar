@@ -57,11 +57,11 @@ function calsys_notify_promoted_waitlist($event, $promoted) {
                 __('Hello %1$s, a place opened and you are now registered for %2$s on %3$s.', 'community-calendar-study-rooms'),
                 $person->name,
                 $event->title,
-                mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)
+                mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)
             ),
             'waitlist_promoted',
             array('name' => $person->name, 'event' => $event->title,
-                'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at))
+                'datetime' => mysql2date(get_option('date_format') . ' g:i A', $event->starts_at))
         );
         $all_sent = $sent && $all_sent;
     }
@@ -131,11 +131,11 @@ function calsys_cancel_event_attendee() {
                 : __('Hello %1$s, your waitlist entry for %2$s on %3$s has been cancelled by staff.', 'community-calendar-study-rooms'),
             $person->name,
             $event->title,
-            mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at)
+            mysql2date(get_option('date_format') . ' g:i A', $event->starts_at)
         ),
         $kind === 'registration' ? 'registration_cancelled' : 'waitlist_cancelled',
         array('name' => $person->name, 'event' => $event->title,
-            'datetime' => mysql2date(get_option('date_format') . ' ' . get_option('time_format'), $event->starts_at))
+            'datetime' => mysql2date(get_option('date_format') . ' g:i A', $event->starts_at))
     );
     $promotions_sent = calsys_notify_promoted_waitlist($event, $promoted);
     calsys_admin_redirect('calsys-event-registrations', $cancel_sent && $promotions_sent ? 'attendee_cancelled' : 'attendee_cancelled_email_failed', $extra);

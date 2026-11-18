@@ -214,11 +214,14 @@ function calsys_calendar_hidden_query_fields($values, $prefix = '') {
 function calsys_render_calendar($title, $events, $month, $calendar_type, $view = 'month', $selected_date = null, $enable_views = false) {
     global $wpdb;
     $timezone = wp_timezone();
+    $settings = calsys_get_settings();
     $has_active_rooms = !in_array($calendar_type, array('rooms', 'combined'), true) ||
         (bool) $wpdb->get_var("SELECT id FROM " . calsys_table('rooms') . " WHERE active = 1 LIMIT 1");
     $staff_access = current_user_can('manage_calendar_system');
+    $booking_rules = $settings['booking_rules'];
+    $room_requests_settings = $settings['room_requests'];
     $room_rules = !$staff_access && $has_active_rooms && in_array($calendar_type, array('rooms', 'combined'), true)
-        ? calsys_get_settings()['booking_rules'] : null;
+        ? $booking_rules : null;
     $selected_date = $selected_date ?? $month;
     list($grid_start, $range_end) = calsys_calendar_range($month, $view, $selected_date);
     $grid_end = $range_end->modify('-1 second');

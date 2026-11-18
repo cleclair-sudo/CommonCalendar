@@ -798,6 +798,12 @@
             closeDialog(eventDialog);
         } else if (button.hasAttribute('data-calsys-add-room')) {
             // Check advance booking limit before opening form
+            console.log('Add room button clicked', {
+                staffBooking: button.dataset.staffBooking,
+                date: button.dataset.date,
+                maxAdvanceMonths: button.dataset.maxAdvanceMonths,
+                message: button.dataset.advanceBookingMessage
+            });
             if (button.dataset.staffBooking !== '1' && button.dataset.date) {
                 var maxAdvanceMonths = parseInt(button.dataset.maxAdvanceMonths || '0', 10);
                 if (maxAdvanceMonths > 0) {
@@ -805,8 +811,14 @@
                     var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                     var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
                     var selectedDate = new Date(button.dataset.date + 'T00:00:00');
+                    console.log('Checking date limit', {
+                        selectedDate: selectedDate.toISOString(),
+                        maxDate: maxDate.toISOString(),
+                        exceeds: selectedDate > maxDate
+                    });
                     if (selectedDate > maxDate) {
                         var message = button.dataset.advanceBookingMessage || 'Please submit your request closer to your desired event date.';
+                        console.log('Showing popup with message:', message);
                         alert(message);
                         return;
                     }

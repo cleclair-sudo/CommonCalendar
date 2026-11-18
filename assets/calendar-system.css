@@ -536,11 +536,11 @@
 .calsys-calendar-entry-time,
 .calsys-calendar-entry-title,
 .calsys-calendar-entry-detail {
-    display: inline;
+    display: block;
 }
 
 .calsys-calendar-entry-time::after {
-    content: " · ";
+    content: "";
 }
 
 .calsys-equipment-fields {

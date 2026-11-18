@@ -162,20 +162,6 @@
             filterRoomTimes(form, null);
             return;
         }
-        
-        // Check advance booking limit
-        var maxAdvanceMonths = parseInt(form.dataset.maxAdvanceMonths || '0', 10);
-        if (maxAdvanceMonths > 0 && form.dataset.staffBooking !== '1') {
-            var today = new Date();
-            var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-            var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
-            var selectedDate = new Date(date.value + 'T00:00:00');
-            if (selectedDate > maxDate) {
-                message.textContent = message.dataset.advanceLimit;
-                return;
-            }
-        }
-        
         var params = new URLSearchParams({
             action: 'calsys_room_availability',
             nonce: form.dataset.availabilityNonce,
@@ -1055,6 +1041,23 @@
         } else if (form.matches('[data-calsys-delete-room-booking-form]')) {
             if (!window.confirm(labels.confirmDeleteRoomBooking || 'Delete this room booking?')) {
                 event.preventDefault();
+            }
+        } else if (form.matches('[data-calsys-room-availability]') && form.dataset.staffBooking !== '1') {
+            // Check advance booking limit and show popup if needed
+            var maxAdvanceMonths = parseInt(form.dataset.maxAdvanceMonths || '0', 10);
+            if (maxAdvanceMonths > 0) {
+                var dateField = form.elements.namedItem('booking_date');
+                if (dateField && dateField.value) {
+                    var today = new Date();
+                    var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                    var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
+                    var selectedDate = new Date(dateField.value + 'T00:00:00');
+                    if (selectedDate > maxDate) {
+                        event.preventDefault();
+                        var message = form.dataset.advanceBookingMessage || 'Please submit your request closer to your desired event date.';
+                        alert(message);
+                    }
+                }
             }
         }
     });

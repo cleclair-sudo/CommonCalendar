@@ -417,6 +417,8 @@ function calsys_admin_settings_page() {
                     <td><textarea id="calsys-room-request-message" name="room_requests[submitted_message]" rows="3" maxlength="500" class="large-text"><?php echo esc_textarea($settings['room_requests']['submitted_message']); ?></textarea><p class="description"><?php esc_html_e('Message shown to users after they submit a room request.', 'community-calendar-study-rooms'); ?></p></td></tr>
                 <tr><th scope="row"><label for="calsys-room-already-booked-message"><?php esc_html_e('Room already booked message', 'community-calendar-study-rooms'); ?></label></th>
                     <td><textarea id="calsys-room-already-booked-message" name="room_requests[already_booked_message]" rows="3" maxlength="500" class="large-text"><?php echo esc_textarea($settings['room_requests']['already_booked_message']); ?></textarea><p class="description"><?php esc_html_e('Popup message shown when a room is already booked for the requested time (confirmed bookings only). Requests overlapping with other pending requests are still allowed.', 'community-calendar-study-rooms'); ?></p></td></tr>
+                <tr><th scope="row"><label for="calsys-room-advance-booking-message"><?php esc_html_e('Advance booking limit message', 'community-calendar-study-rooms'); ?></label></th>
+                    <td><textarea id="calsys-room-advance-booking-message" name="room_requests[advance_booking_message]" rows="4" maxlength="500" class="large-text"><?php echo esc_textarea($settings['room_requests']['advance_booking_message']); ?></textarea><p class="description"><?php esc_html_e('Informational popup shown when a user clicks Request and the advance booking limit is set. Explain the limitation and provide contact information for exceptions.', 'community-calendar-study-rooms'); ?></p></td></tr>
             </tbody></table>
             </section>
 
@@ -758,7 +760,7 @@ function calsys_save_settings() {
     $posted_room_requests = isset($_POST['room_requests']) && is_array($_POST['room_requests'])
         ? wp_unslash($_POST['room_requests'])
         : array();
-    foreach (array('submitted_message', 'already_booked_message') as $room_key) {
+    foreach (array('submitted_message', 'already_booked_message', 'advance_booking_message') as $room_key) {
         if (isset($posted_room_requests[$room_key]) && !is_scalar($posted_room_requests[$room_key])) {
             calsys_admin_redirect('calsys-settings', 'settings_invalid');
         }
@@ -777,6 +779,14 @@ function calsys_save_settings() {
     }
     $room_already_booked_message = sanitize_text_field($room_already_booked_message);
     if ($room_already_booked_message === '') {
+        calsys_admin_redirect('calsys-settings', 'settings_invalid');
+    }
+    $room_advance_booking_message = $posted_room_requests['advance_booking_message'] ?? '';
+    if (!is_string($room_advance_booking_message) || strlen($room_advance_booking_message) > 500) {
+        calsys_admin_redirect('calsys-settings', 'settings_invalid');
+    }
+    $room_advance_booking_message = sanitize_text_field($room_advance_booking_message);
+    if ($room_advance_booking_message === '') {
         calsys_admin_redirect('calsys-settings', 'settings_invalid');
     }
 
@@ -873,6 +883,7 @@ function calsys_save_settings() {
         'room_requests' => array(
             'submitted_message' => $room_request_message,
             'already_booked_message' => $room_already_booked_message,
+            'advance_booking_message' => $room_advance_booking_message,
         ),
         'notifications' => array(
             'staff_email' => $staff_email,

@@ -622,6 +622,7 @@ function calsys_default_settings() {
         'room_requests' => array(
             'submitted_message' => __('We have received your room request. We will be in touch by email, please remember to check your junk folder.', 'community-calendar-study-rooms'),
             'already_booked_message' => __('That room is already booked for this time. Please choose another time or room.', 'community-calendar-study-rooms'),
+            'advance_booking_message' => __('In order to meet the needs of library and city departments, we do not open up our meeting spaces to the public more than a month in advance. Please submit your request closer to the calendar month of your event. Exceptions may be made on a case-by-case basis by contacting meetingroom@mcarthurlibrary.org.', 'community-calendar-study-rooms'),
         ),
         'notifications' => array(
             'staff_email' => sanitize_email(get_option('admin_email')),
@@ -805,6 +806,7 @@ function calsys_get_settings() {
     $settings['room_requests'] = array(
         'submitted_message' => calsys_registration_setting_text($room_requests, 'submitted_message', $defaults['room_requests']['submitted_message'], 500),
         'already_booked_message' => calsys_registration_setting_text($room_requests, 'already_booked_message', $defaults['room_requests']['already_booked_message'], 500),
+        'advance_booking_message' => calsys_registration_setting_text($room_requests, 'advance_booking_message', $defaults['room_requests']['advance_booking_message'], 500),
     );
 
     $notifications = is_array($saved['notifications'] ?? null) ? $saved['notifications'] : array();

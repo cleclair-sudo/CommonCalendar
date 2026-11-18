@@ -82,27 +82,15 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         $_POST['ends_at'] ?? '',
         $staff_booking
     );
-    if (!$booking) {
-        $date = $_POST['booking_date'] ?? '';
-        $start = $_POST['starts_at'] ?? '';
-        $end = $_POST['ends_at'] ?? '';
-        if (!$staff_booking && calsys_room_duration_exceeds_limit($start, $end, calsys_get_settings()['booking_rules']['max_duration_minutes'])) {
-            calsys_action_redirect($frontend, 'calsys-rooms', 'duration_limit');
-        }
-        if (!$staff_booking && is_string($date) && is_string($start) && is_string($end) &&
-            preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) &&
-            preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $start) &&
-            preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $end) && $start < $end &&
-            !calsys_room_is_within_hours($date, $start, $end)) {
-            calsys_action_redirect($frontend, 'calsys-rooms', 'outside_hours');
-        }
-        if (!$staff_booking && calsys_booking_exceeds_advance_limit($date, calsys_get_settings()['booking_rules']['max_advance_months'])) {
+    if (!is_array($booking)) {
+        $error_code = $booking;
+        if (!$staff_booking && $error_code === 'advance_booking_limit') {
             calsys_action_redirect($frontend, 'calsys-rooms', 'advance_booking_limit');
         }
-        calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+        calsys_action_redirect($frontend, 'calsys-rooms', $error_code);
     }
     if ($wpdb->query('START TRANSACTION') === false) {
-        calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+        calsys_action_redirect($frontend, 'calsys-rooms', 'transaction_failed');
     }
     $locked_room = $wpdb->get_var($wpdb->prepare(
         "SELECT id FROM " . calsys_table('rooms') . " WHERE id = %d AND active = 1 FOR UPDATE",
@@ -110,12 +98,12 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
     ));
     if (!$locked_room) {
         $wpdb->query('ROLLBACK');
-        calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+        calsys_action_redirect($frontend, 'calsys-rooms', 'room_lock_failed');
     }
     $has_conflict = calsys_booking_conflict($booking['room_id'], $booking['date'], $booking['start'], $booking['end'], $booking_id);
     if ($has_conflict === null) {
         $wpdb->query('ROLLBACK');
-        calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+        calsys_action_redirect($frontend, 'calsys-rooms', 'conflict_check_failed');
     }
     if ($has_conflict && (!$staff_booking || ($_POST['confirm_room_conflict'] ?? '') !== '1')) {
         $wpdb->query('ROLLBACK');
@@ -125,7 +113,7 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         $has_confirmed_booking = calsys_has_confirmed_booking_conflict($booking['room_id'], $booking['date'], $booking['start'], $booking['end'], $booking_id);
         if ($has_confirmed_booking === null) {
             $wpdb->query('ROLLBACK');
-            calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+            calsys_action_redirect($frontend, 'calsys-rooms', 'conflict_check_failed');
         }
         if ($has_confirmed_booking) {
             $wpdb->query('ROLLBACK');

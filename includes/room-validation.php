@@ -48,7 +48,7 @@ function calsys_booking_exceeds_advance_limit($booking_date, $max_advance_months
     return $booking_dt > $max_date;
 }
 
-/** Validates room, patron, date, and time values against booking rules. */
+/** Validates room, patron, date, and time values against booking rules. Returns array on success, error code string on failure. */
 function calsys_valid_booking_input($room_id, $name, $email, $date, $start, $end, $staff_booking = false) {
     $room = absint($room_id);
     $name = sanitize_text_field(wp_unslash($name));
@@ -62,16 +62,22 @@ function calsys_valid_booking_input($room_id, $name, $email, $date, $start, $end
         $room
     )) : null;
 
-    if (!$room_record || !$room_record->active || $name === '' || strlen($name) > 200 || !is_email($email) || strlen($email) > 200) {
-        return false;
+    if (!$room_record || !$room_record->active) {
+        return 'invalid_room';
+    }
+    if ($name === '' || strlen($name) > 200) {
+        return 'invalid_name';
+    }
+    if (!is_email($email) || strlen($email) > 200) {
+        return 'invalid_email';
     }
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || !preg_match('/^\d{2}:\d{2}$/', $start) || !preg_match('/^\d{2}:\d{2}$/', $end) || $start >= $end) {
-        return false;
+        return 'invalid_format';
     }
     $booking_date = DateTimeImmutable::createFromFormat('!Y-m-d', $date, wp_timezone());
     $date_errors = DateTimeImmutable::getLastErrors();
     if (!$booking_date || ($date_errors && ($date_errors['warning_count'] || $date_errors['error_count'])) || $booking_date->format('Y-m-d') !== $date || $date < current_time('Y-m-d')) {
-        return false;
+        return 'invalid_date';
     }
     $start_time = DateTimeImmutable::createFromFormat('!H:i', $start, wp_timezone());
     $start_errors = DateTimeImmutable::getLastErrors();
@@ -79,39 +85,39 @@ function calsys_valid_booking_input($room_id, $name, $email, $date, $start, $end
     $end_errors = DateTimeImmutable::getLastErrors();
     if (!$start_time || ($start_errors && ($start_errors['warning_count'] || $start_errors['error_count'])) || $start_time->format('H:i') !== $start ||
         !$end_time || ($end_errors && ($end_errors['warning_count'] || $end_errors['error_count'])) || $end_time->format('H:i') !== $end) {
-        return false;
+        return 'invalid_time';
     }
     if ($date === current_time('Y-m-d') && $start <= current_time('H:i')) {
-        return false;
+        return 'past_time';
     }
     if (!$staff_booking) {
         $rules = calsys_get_settings()['booking_rules'];
         if (calsys_room_duration_exceeds_limit($start, $end, $rules['max_duration_minutes'])) {
-            return false;
+            return 'duration_limit';
         }
         if ($rules['max_advance_days'] > 0) {
             $last_bookable_day = DateTimeImmutable::createFromFormat('!Y-m-d', current_time('Y-m-d'), wp_timezone())
                 ->modify('+' . (int) $rules['max_advance_days'] . ' days')
                 ->format('Y-m-d');
             if ($date > $last_bookable_day) {
-                return false;
+                return 'date_too_far';
             }
         }
         $booking_start = DateTimeImmutable::createFromFormat('!Y-m-d H:i', $date . ' ' . $start, wp_timezone());
         if ($rules['min_notice_hours'] > 0 &&
             $booking_start->getTimestamp() < time() + ((int) $rules['min_notice_hours'] * HOUR_IN_SECONDS)) {
-            return false;
+            return 'insufficient_notice';
         }
         if ($rules['time_increment'] > 0) {
             $increment = (int) $rules['time_increment'];
             $start_minutes = ((int) $start_time->format('G') * 60) + (int) $start_time->format('i');
             $end_minutes = ((int) $end_time->format('G') * 60) + (int) $end_time->format('i');
             if ($start_minutes % $increment !== 0 || $end_minutes % $increment !== 0) {
-                return false;
+                return 'invalid_time_increment';
             }
         }
         if (!calsys_room_is_within_hours($date, $start, $end, $rules)) {
-            return false;
+            return 'outside_hours';
         }
     }
     return array(

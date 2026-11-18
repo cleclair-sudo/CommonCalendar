@@ -426,6 +426,38 @@
         button.focus();
     }
 
+    // Shows a modal popup with a message (used for advance booking limit and other notifications)
+    function showMessageDialog(title, message) {
+        var dialog = document.createElement('dialog');
+        dialog.className = 'calsys-modal calsys-message-dialog';
+        dialog.setAttribute('aria-label', title);
+        var card = document.createElement('section');
+        card.className = 'calsys-action-card';
+        var heading = document.createElement('h2');
+        heading.textContent = title;
+        var content = document.createElement('p');
+        content.textContent = message;
+        var button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'calsys-result-close';
+        button.textContent = 'Close';
+        button.addEventListener('click', function () { closeDialog(dialog); });
+        dialog.addEventListener('close', function () { dialog.classList.remove('is-open'); });
+        dialog.addEventListener('keydown', function (event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                closeDialog(dialog);
+            }
+        });
+        card.appendChild(heading);
+        card.appendChild(button);
+        card.appendChild(content);
+        dialog.appendChild(card);
+        document.body.appendChild(dialog);
+        openDialog(dialog);
+        button.focus();
+    }
+
     // Opens the event editor belonging to a calendar widget.
     function openEventDialog(widget) {
         openDialog(widget.querySelector('.calsys-event-dialog'));
@@ -798,12 +830,6 @@
             closeDialog(eventDialog);
         } else if (button.hasAttribute('data-calsys-add-room')) {
             // Check advance booking limit before opening form
-            console.log('Add room button clicked', {
-                staffBooking: button.dataset.staffBooking,
-                date: button.dataset.date,
-                maxAdvanceMonths: button.dataset.maxAdvanceMonths,
-                message: button.dataset.advanceBookingMessage
-            });
             if (button.dataset.staffBooking !== '1' && button.dataset.date) {
                 var maxAdvanceMonths = parseInt(button.dataset.maxAdvanceMonths || '0', 10);
                 if (maxAdvanceMonths > 0) {
@@ -811,15 +837,9 @@
                     var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
                     var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
                     var selectedDate = new Date(button.dataset.date + 'T00:00:00');
-                    console.log('Checking date limit', {
-                        selectedDate: selectedDate.toISOString(),
-                        maxDate: maxDate.toISOString(),
-                        exceeds: selectedDate > maxDate
-                    });
                     if (selectedDate > maxDate) {
                         var message = button.dataset.advanceBookingMessage || 'Please submit your request closer to your desired event date.';
-                        console.log('Showing popup with message:', message);
-                        alert(message);
+                        showMessageDialog(labels.advanceBookingTitle || 'Booking Policy', message);
                         return;
                     }
                 }

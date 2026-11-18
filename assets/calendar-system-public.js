@@ -1022,6 +1022,28 @@
                 updateRoomAvailability(roomForm);
             }
         }
+        // Check advance booking limit when user clicks the Request button
+        if (event.target instanceof Element && event.target.matches('[data-calsys-save-room]')) {
+            var form = event.target.closest('[data-calsys-room-availability]');
+            if (form && form.dataset.staffBooking !== '1') {
+                var maxAdvanceMonths = parseInt(form.dataset.maxAdvanceMonths || '0', 10);
+                if (maxAdvanceMonths > 0) {
+                    var dateField = form.elements.namedItem('booking_date');
+                    if (dateField && dateField.value) {
+                        var today = new Date();
+                        var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+                        var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
+                        var selectedDate = new Date(dateField.value + 'T00:00:00');
+                        if (selectedDate > maxDate) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            var message = form.dataset.advanceBookingMessage || 'Please submit your request closer to your desired event date.';
+                            alert(message);
+                        }
+                    }
+                }
+            }
+        }
     });
 
     // Confirms destructive calendar actions before allowing their forms to submit.
@@ -1041,23 +1063,6 @@
         } else if (form.matches('[data-calsys-delete-room-booking-form]')) {
             if (!window.confirm(labels.confirmDeleteRoomBooking || 'Delete this room booking?')) {
                 event.preventDefault();
-            }
-        } else if (form.matches('[data-calsys-room-availability]') && form.dataset.staffBooking !== '1') {
-            // Check advance booking limit and show popup if needed
-            var maxAdvanceMonths = parseInt(form.dataset.maxAdvanceMonths || '0', 10);
-            if (maxAdvanceMonths > 0) {
-                var dateField = form.elements.namedItem('booking_date');
-                if (dateField && dateField.value) {
-                    var today = new Date();
-                    var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-                    var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
-                    var selectedDate = new Date(dateField.value + 'T00:00:00');
-                    if (selectedDate > maxDate) {
-                        event.preventDefault();
-                        var message = form.dataset.advanceBookingMessage || 'Please submit your request closer to your desired event date.';
-                        alert(message);
-                    }
-                }
             }
         }
     });

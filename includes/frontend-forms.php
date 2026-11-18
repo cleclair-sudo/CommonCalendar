@@ -282,9 +282,11 @@ function calsys_datetime_fields($name, $label, $value = '', $step = 1) {
 
 /** Adds the configuration needed for live room-availability checks. */
 function calsys_room_availability_attributes($staff) {
+    $booking_rules = calsys_get_settings()['booking_rules'];
+    $max_advance_months = !$staff && isset($booking_rules['max_advance_months']) ? (int) $booking_rules['max_advance_months'] : 0;
     return ' data-calsys-room-availability data-ajax-url="' . esc_url(admin_url('admin-ajax.php')) .
         '" data-availability-nonce="' . esc_attr(wp_create_nonce('calsys_room_availability')) .
-        '" data-staff-booking="' . ($staff ? '1' : '0') . '"';
+        '" data-staff-booking="' . ($staff ? '1' : '0') . '" data-max-advance-months="' . esc_attr($max_advance_months) . '"';
 }
 
 /** Renders the live room-availability messages. */
@@ -295,6 +297,7 @@ function calsys_room_availability_messages($staff = false) {
         'data-conflict="' . esc_attr($staff
             ? __('This room is already requested or booked for that time. Choose another time or acknowledge the double booking below.', 'community-calendar-study-rooms')
             : __('This room is already requested or booked for that time. Choose another time or room.', 'community-calendar-study-rooms')) . '" ' .
+        'data-advance-limit="' . esc_attr__('You cannot book more than the maximum advance period allows. Please choose an earlier date.', 'community-calendar-study-rooms') . '" ' .
         'data-error="' . esc_attr__('Room availability could not be checked. Please try again; the final check happens when you save.', 'community-calendar-study-rooms') . '"></div>';
     if ($staff) {
         $html .= '<p class="calsys-form-wide" data-calsys-conflict-ack hidden><label class="calsys-checkbox-label">' .
@@ -316,10 +319,25 @@ function calsys_front_room_form() {
     $booking_rules = calsys_get_settings()['booking_rules'];
     $approval_required = (bool) calsys_get_settings()['room_approval_required'];
     $time_options = calsys_room_time_options($staff_booking ? 0 : (int) $booking_rules['time_increment']);
+    
+    // Calculate max date based on max_advance_days
     $latest_booking_date = !$staff_booking && $booking_rules['max_advance_days'] > 0
         ? DateTimeImmutable::createFromFormat('!Y-m-d', current_time('Y-m-d'), wp_timezone())
             ->modify('+' . (int) $booking_rules['max_advance_days'] . ' days')->format('Y-m-d')
         : '';
+    
+    // Calculate max date based on max_advance_months
+    $max_advance_months = !$staff_booking && isset($booking_rules['max_advance_months']) ? (int) $booking_rules['max_advance_months'] : 0;
+    if (!$staff_booking && $max_advance_months > 0) {
+        $current_month_start = DateTimeImmutable::createFromFormat('!Y-m-d', current_time('Y-m-01'), wp_timezone());
+        $max_date_months = $current_month_start->add(DateInterval::createFromDateString($max_advance_months . ' months'))
+            ->sub(DateInterval::createFromDateString('1 day'))->format('Y-m-d');
+        // Use the more restrictive limit
+        if (!$latest_booking_date || $max_date_months < $latest_booking_date) {
+            $latest_booking_date = $max_date_months;
+        }
+    }
+    
     ob_start();
     ?>
     <dialog class="calsys-modal calsys-room-dialog" aria-label="<?php esc_attr_e('Room booking form', 'community-calendar-study-rooms'); ?>">

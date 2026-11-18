@@ -162,6 +162,20 @@
             filterRoomTimes(form, null);
             return;
         }
+        
+        // Check advance booking limit
+        var maxAdvanceMonths = parseInt(form.dataset.maxAdvanceMonths || '0', 10);
+        if (maxAdvanceMonths > 0 && form.dataset.staffBooking !== '1') {
+            var today = new Date();
+            var currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+            var maxDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + maxAdvanceMonths, 0);
+            var selectedDate = new Date(date.value + 'T00:00:00');
+            if (selectedDate > maxDate) {
+                message.textContent = message.dataset.advanceLimit;
+                return;
+            }
+        }
+        
         var params = new URLSearchParams({
             action: 'calsys_room_availability',
             nonce: form.dataset.availabilityNonce,

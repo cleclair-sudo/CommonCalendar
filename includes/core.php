@@ -618,6 +618,9 @@ function calsys_default_settings() {
             'show_registration_counts' => 1,
             'show_category_labels' => 1,
         ),
+        'room_requests' => array(
+            'submitted_message' => __('We have received your room request. We will be in touch by email, please remember to check your junk folder.', 'community-calendar-study-rooms'),
+        ),
         'notifications' => array(
             'staff_email' => sanitize_email(get_option('admin_email')),
             'notify_staff_room_requests' => 0,
@@ -792,6 +795,11 @@ function calsys_get_settings() {
             ? $display['initial_month'] : $defaults['calendar_display']['initial_month'],
         'show_registration_counts' => isset($display['show_registration_counts']) ? (int) (bool) $display['show_registration_counts'] : $defaults['calendar_display']['show_registration_counts'],
         'show_category_labels' => isset($display['show_category_labels']) ? (int) (bool) $display['show_category_labels'] : $defaults['calendar_display']['show_category_labels'],
+    );
+
+    $room_requests = is_array($saved['room_requests'] ?? null) ? $saved['room_requests'] : array();
+    $settings['room_requests'] = array(
+        'submitted_message' => calsys_registration_setting_text($room_requests, 'submitted_message', $defaults['room_requests']['submitted_message'], 500),
     );
 
     $notifications = is_array($saved['notifications'] ?? null) ? $saved['notifications'] : array();

@@ -40,7 +40,9 @@ function calsys_result_notice($content, $popup) {
 /** Renders a translated result notice from a validated query parameter. */
 function calsys_public_notice($popup = false) {
     $key = sanitize_key(wp_unslash($_GET['calsys_notice'] ?? ''));
-    $registration_settings = calsys_get_settings()['event_registration'];
+    $settings = calsys_get_settings();
+    $registration_settings = $settings['event_registration'];
+    $room_requests_settings = $settings['room_requests'];
     $messages = array(
         'registration_complete' => $registration_settings['confirmation_message'],
         'registration_email_failed' => __('Your registration is complete, but we could not send your confirmation email. Please contact staff.', 'community-calendar-study-rooms'),
@@ -60,7 +62,7 @@ function calsys_public_notice($popup = false) {
         'saved_waitlist_email_failed' => __('The event was saved and waitlist places were assigned, but one or more notification emails failed. Check the site error log.', 'community-calendar-study-rooms'),
         'event_full' => $registration_settings['full_message'],
         'invalid_registration' => __('Please check the registration details and try again.', 'community-calendar-study-rooms'),
-        'room_request_sent' => __('We have received your room request. We will be in touch by email, please remember to check your junk folder.', 'community-calendar-study-rooms'),
+        'room_request_sent' => $room_requests_settings['submitted_message'],
         'room_booking_saved' => __('The room booking has been added to the calendar.', 'community-calendar-study-rooms'),
         'room_conflict' => __('That room and time are already requested or booked. Please choose another time.', 'community-calendar-study-rooms'),
         'outside_hours' => __('The requested time is outside opening hours or on a closed day.', 'community-calendar-study-rooms'),

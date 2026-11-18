@@ -404,6 +404,14 @@ function calsys_admin_settings_page() {
             ); ?>
             </section>
 
+            <section class="calsys-settings-card" id="calsys-settings-room-requests">
+            <h2><?php esc_html_e('Room requests', 'community-calendar-study-rooms'); ?></h2>
+            <table class="form-table" role="presentation"><tbody>
+                <tr><th scope="row"><label for="calsys-room-request-message"><?php esc_html_e('Submission message', 'community-calendar-study-rooms'); ?></label></th>
+                    <td><textarea id="calsys-room-request-message" name="room_requests[submitted_message]" rows="3" maxlength="500" class="large-text"><?php echo esc_textarea($settings['room_requests']['submitted_message']); ?></textarea><p class="description"><?php esc_html_e('Message shown to users after they submit a room request.', 'community-calendar-study-rooms'); ?></p></td></tr>
+            </tbody></table>
+            </section>
+
             <section class="calsys-settings-card" id="calsys-settings-display">
             <h2><?php esc_html_e('Calendar display', 'community-calendar-study-rooms'); ?></h2>
             <table class="form-table" role="presentation"><tbody>
@@ -735,6 +743,23 @@ function calsys_save_settings() {
         calsys_admin_redirect('calsys-settings', 'settings_invalid');
     }
 
+    $posted_room_requests = isset($_POST['room_requests']) && is_array($_POST['room_requests'])
+        ? wp_unslash($_POST['room_requests'])
+        : array();
+    foreach (array('submitted_message') as $room_key) {
+        if (isset($posted_room_requests[$room_key]) && !is_scalar($posted_room_requests[$room_key])) {
+            calsys_admin_redirect('calsys-settings', 'settings_invalid');
+        }
+    }
+    $room_request_message = $posted_room_requests['submitted_message'] ?? '';
+    if (!is_string($room_request_message) || strlen($room_request_message) > 500) {
+        calsys_admin_redirect('calsys-settings', 'settings_invalid');
+    }
+    $room_request_message = sanitize_text_field($room_request_message);
+    if ($room_request_message === '') {
+        calsys_admin_redirect('calsys-settings', 'settings_invalid');
+    }
+
     $posted_display = isset($_POST['calendar_display']) && is_array($_POST['calendar_display'])
         ? wp_unslash($_POST['calendar_display'])
         : array();
@@ -823,6 +848,9 @@ function calsys_save_settings() {
             'initial_month' => $initial_month,
             'show_registration_counts' => $old_settings['calendar_display']['show_registration_counts'],
             'show_category_labels' => isset($posted_display['show_category_labels']) ? 1 : 0,
+        ),
+        'room_requests' => array(
+            'submitted_message' => $room_request_message,
         ),
         'notifications' => array(
             'staff_email' => $staff_email,

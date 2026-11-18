@@ -330,6 +330,12 @@ function calsys_admin_settings_page() {
             <table class="form-table" role="presentation"><tbody>
                 <tr><th scope="row"><label for="calsys-max-advance"><?php esc_html_e('Booking window', 'community-calendar-study-rooms'); ?></label></th>
                     <td><input id="calsys-max-advance" name="booking_rules[max_advance_days]" type="number" min="0" max="730" value="<?php echo esc_attr($settings['booking_rules']['max_advance_days']); ?>"> <?php esc_html_e('days ahead (0 = no limit)', 'community-calendar-study-rooms'); ?></td></tr>
+                <tr><th scope="row"><label for="calsys-max-advance-months"><?php esc_html_e('Maximum advance booking (public only)', 'community-calendar-study-rooms'); ?></label></th>
+                    <td><select id="calsys-max-advance-months" name="booking_rules[max_advance_months]">
+                        <?php foreach (array(0 => __('Unlimited', 'community-calendar-study-rooms'), 1 => __('1 month', 'community-calendar-study-rooms'), 2 => __('2 months', 'community-calendar-study-rooms'), 3 => __('3 months', 'community-calendar-study-rooms'), 4 => __('4 months', 'community-calendar-study-rooms'), 5 => __('5 months', 'community-calendar-study-rooms')) as $value => $label) : ?>
+                            <option value="<?php echo esc_attr($value); ?>" <?php selected($settings['booking_rules']['max_advance_months'], $value); ?>><?php echo esc_html($label); ?></option>
+                        <?php endforeach; ?>
+                    </select><p class="description"><?php esc_html_e('From the start of the current month. Example: if set to 2 months and today is Nov 17, users can book through end of Dec.', 'community-calendar-study-rooms'); ?></p></td></tr>
                 <tr><th scope="row"><label for="calsys-min-notice"><?php esc_html_e('Minimum notice', 'community-calendar-study-rooms'); ?></label></th>
                     <td><input id="calsys-min-notice" name="booking_rules[min_notice_hours]" type="number" min="0" max="8760" value="<?php echo esc_attr($settings['booking_rules']['min_notice_hours']); ?>"> <?php esc_html_e('hours before a booking (0 = no limit)', 'community-calendar-study-rooms'); ?></td></tr>
                 <tr><th scope="row"><label for="calsys-max-duration"><?php esc_html_e('Maximum booking duration', 'community-calendar-study-rooms'); ?></label></th>
@@ -652,7 +658,7 @@ function calsys_save_settings() {
     $posted_rules = isset($_POST['booking_rules']) && is_array($_POST['booking_rules'])
         ? wp_unslash($_POST['booking_rules'])
         : array();
-    foreach (array('max_advance_days', 'min_notice_hours', 'max_duration_minutes', 'time_increment', 'opening_time', 'closing_time') as $rule_key) {
+    foreach (array('max_advance_days', 'min_notice_hours', 'max_duration_minutes', 'time_increment', 'opening_time', 'closing_time', 'max_advance_months') as $rule_key) {
         if (isset($posted_rules[$rule_key]) && !is_scalar($posted_rules[$rule_key])) {
             calsys_admin_redirect('calsys-settings', 'settings_invalid');
         }
@@ -660,6 +666,7 @@ function calsys_save_settings() {
     $max_advance_days = absint($posted_rules['max_advance_days'] ?? 0);
     $min_notice_hours = absint($posted_rules['min_notice_hours'] ?? 0);
     $time_increment = absint($posted_rules['time_increment'] ?? 0);
+    $max_advance_months = absint($posted_rules['max_advance_months'] ?? 0);
     $old_settings = calsys_get_settings();
     $raw_max_duration = $posted_rules['max_duration_minutes'] ?? $old_settings['booking_rules']['max_duration_minutes'];
     if (!is_scalar($raw_max_duration) || !preg_match('/^\d+$/', (string) $raw_max_duration) || (int) $raw_max_duration > 1440) {
@@ -669,6 +676,9 @@ function calsys_save_settings() {
     $opening_time = sanitize_text_field($posted_rules['opening_time'] ?? $old_settings['booking_rules']['opening_time']);
     $closing_time = sanitize_text_field($posted_rules['closing_time'] ?? $old_settings['booking_rules']['closing_time']);
     $valid_increments = array(0, 5, 10, 15, 20, 30, 60);
+    if (!in_array($max_advance_months, array(0, 1, 2, 3, 4, 5), true)) {
+        calsys_admin_redirect('calsys-settings', 'settings_invalid');
+    }
     if ($max_advance_days > 730 || $min_notice_hours > 8760 ||
         !in_array($time_increment, $valid_increments, true) ||
         (($opening_time === '') !== ($closing_time === '')) ||
@@ -833,6 +843,7 @@ function calsys_save_settings() {
             'closing_time' => $closing_time,
             'weekly_hours' => $schedule['weekly'],
             'holiday_hours' => $schedule['holidays'],
+            'max_advance_months' => $max_advance_months,
         ),
         'room_approval_required' => isset($_POST['room_approval_required']) ? 1 : 0,
         'event_registration' => array(

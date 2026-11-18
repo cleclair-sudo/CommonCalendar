@@ -34,6 +34,20 @@ function calsys_room_duration_exceeds_limit($start, $end, $limit) {
         ((int) substr($start, 0, 2) * 60 + (int) substr($start, 3, 2)) > $limit;
 }
 
+/** Checks if a booking date exceeds the max advance months limit for public users. Returns false if allowed, true if exceeds limit. */
+function calsys_booking_exceeds_advance_limit($booking_date, $max_advance_months) {
+    if (!$max_advance_months || !is_string($booking_date) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $booking_date)) {
+        return false;
+    }
+    $today = new DateTimeImmutable('now', wp_timezone());
+    $current_month = $today->format('Y-m-01');
+    $max_date = DateTimeImmutable::createFromFormat('!Y-m-d', $current_month, wp_timezone())
+        ->add(DateInterval::createFromDateString($max_advance_months . ' months'))
+        ->sub(DateInterval::createFromDateString('1 day'));
+    $booking_dt = DateTimeImmutable::createFromFormat('!Y-m-d', $booking_date, wp_timezone());
+    return $booking_dt > $max_date;
+}
+
 /** Validates room, patron, date, and time values against booking rules. */
 function calsys_valid_booking_input($room_id, $name, $email, $date, $start, $end, $staff_booking = false) {
     $room = absint($room_id);

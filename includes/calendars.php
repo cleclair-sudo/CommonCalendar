@@ -66,6 +66,7 @@ function calsys_public_notice($popup = false) {
         'room_already_booked' => $room_requests_settings['already_booked_message'],
         'room_booking_saved' => __('The room booking has been added to the calendar.', 'community-calendar-study-rooms'),
         'room_conflict' => __('That room and time are already requested or booked. Please choose another time.', 'community-calendar-study-rooms'),
+        'advance_booking_limit' => __('You cannot book more than the maximum advance period allows. Please choose an earlier date.', 'community-calendar-study-rooms'),
         'outside_hours' => __('The requested time is outside opening hours or on a closed day.', 'community-calendar-study-rooms'),
         'duration_limit' => __('That request exceeds the maximum room booking duration. Please choose a shorter time.', 'community-calendar-study-rooms'),
         'room_booking_saved_outside_hours' => __('Staff booking confirmed, but it is outside opening hours.', 'community-calendar-study-rooms'),

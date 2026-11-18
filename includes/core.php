@@ -592,6 +592,7 @@ function calsys_default_settings() {
             'time_increment' => 0,
             'opening_time' => '',
             'closing_time' => '',
+            'max_advance_months' => 0,
         ),
         'room_approval_required' => 1,
         'event_registration' => array(
@@ -758,6 +759,8 @@ function calsys_get_settings() {
         'closing_time' => $closing_time,
         'weekly_hours' => $schedule['weekly'],
         'holiday_hours' => $schedule['holidays'],
+        'max_advance_months' => in_array(absint($rules['max_advance_months'] ?? 0), array(0, 1, 2, 3, 4, 5), true)
+            ? absint($rules['max_advance_months'] ?? 0) : 0,
     );
     $settings['room_approval_required'] = isset($saved['room_approval_required'])
         ? (int) (bool) $saved['room_approval_required']

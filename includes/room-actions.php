@@ -96,6 +96,9 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
             !calsys_room_is_within_hours($date, $start, $end)) {
             calsys_action_redirect($frontend, 'calsys-rooms', 'outside_hours');
         }
+        if (!$staff_booking && calsys_booking_exceeds_advance_limit($date, calsys_get_settings()['booking_rules']['max_advance_months'])) {
+            calsys_action_redirect($frontend, 'calsys-rooms', 'advance_booking_limit');
+        }
         calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
     }
     if ($wpdb->query('START TRANSACTION') === false) {

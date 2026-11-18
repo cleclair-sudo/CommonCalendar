@@ -437,10 +437,15 @@
         heading.textContent = title;
         var content = document.createElement('p');
         content.textContent = message;
+        content.style.marginBottom = '0';
+        var buttonContainer = document.createElement('div');
+        buttonContainer.className = 'calsys-action-buttons';
+        buttonContainer.style.marginTop = '1.5rem';
         var button = document.createElement('button');
         button.type = 'button';
         button.className = 'calsys-result-close';
         button.textContent = 'Close';
+        button.style.width = '100%';
         button.addEventListener('click', function () { closeDialog(dialog); });
         dialog.addEventListener('close', function () { dialog.classList.remove('is-open'); });
         dialog.addEventListener('keydown', function (event) {
@@ -450,8 +455,9 @@
             }
         });
         card.appendChild(heading);
-        card.appendChild(button);
         card.appendChild(content);
+        buttonContainer.appendChild(button);
+        card.appendChild(buttonContainer);
         dialog.appendChild(card);
         document.body.appendChild(dialog);
         openDialog(dialog);

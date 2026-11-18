@@ -1134,6 +1134,29 @@
     overflow-wrap: anywhere;
 }
 
+.calsys-message-dialog .calsys-action-card {
+    padding: 1.5rem;
+}
+
+.calsys-message-dialog h2 {
+    margin: 0 0 1rem;
+    color: var(--calsys-text, #333);
+}
+
+.calsys-message-dialog p {
+    margin: 0;
+    color: var(--calsys-text, #333);
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.calsys-message-dialog .calsys-action-buttons {
+    margin-top: 1.5rem;
+    padding: 0;
+    border-top: 1px solid var(--calsys-border, #d7dce2);
+    background: transparent;
+}
+
 .calsys-result-close {
     background: var(--calsys-accent, #1d5f8a);
     border: 0;

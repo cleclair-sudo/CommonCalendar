@@ -63,6 +63,7 @@ function calsys_public_notice($popup = false) {
         'event_full' => $registration_settings['full_message'],
         'invalid_registration' => __('Please check the registration details and try again.', 'community-calendar-study-rooms'),
         'room_request_sent' => $room_requests_settings['submitted_message'],
+        'room_already_booked' => $room_requests_settings['already_booked_message'],
         'room_booking_saved' => __('The room booking has been added to the calendar.', 'community-calendar-study-rooms'),
         'room_conflict' => __('That room and time are already requested or booked. Please choose another time.', 'community-calendar-study-rooms'),
         'outside_hours' => __('The requested time is outside opening hours or on a closed day.', 'community-calendar-study-rooms'),

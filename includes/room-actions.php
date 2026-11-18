@@ -118,6 +118,17 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         $wpdb->query('ROLLBACK');
         calsys_action_redirect($frontend, 'calsys-rooms', 'room_conflict');
     }
+    if (!$staff_booking) {
+        $has_confirmed_booking = calsys_has_confirmed_booking_conflict($booking['room_id'], $booking['date'], $booking['start'], $booking['end'], $booking_id);
+        if ($has_confirmed_booking === null) {
+            $wpdb->query('ROLLBACK');
+            calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+        }
+        if ($has_confirmed_booking) {
+            $wpdb->query('ROLLBACK');
+            calsys_action_redirect($frontend, 'calsys-rooms', 'room_already_booked', array(), true);
+        }
+    }
 
     $booking_data = array(
         'room_id' => $booking['room_id'],

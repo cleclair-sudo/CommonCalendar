@@ -128,6 +128,23 @@ function calsys_booking_conflict($room_id, $date, $start, $end, $exclude_id = 0)
     return (int) $conflicts > 0;
 }
 
+/** Checks if a room has a confirmed booking (approved only, not pending requests) for the given time. */
+function calsys_has_confirmed_booking_conflict($room_id, $date, $start, $end, $exclude_id = 0) {
+    global $wpdb;
+    $table = calsys_table('bookings');
+    $sql = "SELECT COUNT(*) FROM $table WHERE room_id = %d AND booking_date = %s AND status = 'approved' AND starts_at < %s AND ends_at > %s";
+    $args = array($room_id, $date, $end, $start);
+    if ($exclude_id) {
+        $sql .= ' AND id != %d';
+        $args[] = $exclude_id;
+    }
+    $conflicts = $wpdb->get_var($wpdb->prepare($sql, $args));
+    if ($conflicts === null || $conflicts === false) {
+        return null;
+    }
+    return (int) $conflicts > 0;
+}
+
 /** Returns opening hours and a privacy-preserving room conflict check. */
 function calsys_check_room_availability() {
     check_ajax_referer('calsys_room_availability', 'nonce');

@@ -189,8 +189,10 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         $start_label = mysql2date('g:i A', $booking['date'] . ' ' . $booking['start']);
         $end_label = mysql2date('g:i A', $booking['date'] . ' ' . $booking['end']);
         $booking_summary = sprintf(
-            /* translators: 1: room, 2: date, 3: start time, 4: end time, 5: booking status, 6: reason */
-            __("Room: %1\$s\nDate: %2\$s\nTime: %3\$s to %4\$s\nStatus: %5\$s\nReason: %6\$s", 'community-calendar-study-rooms'),
+            /* translators: 1: requester name, 2: requester email, 3: room, 4: date, 5: start time, 6: end time, 7: booking status, 8: reason */
+            __("Requester Name: %1\$s\nRequester Email: %2\$s\nRoom: %3\$s\nDate: %4\$s\nTime: %5\$s to %6\$s\nStatus: %7\$s\nReason: %8\$s", 'community-calendar-study-rooms'),
+            $booking['name'],
+            $booking['email'],
             $booking['room_name'],
             $booking['date'],
             $start_label,
@@ -198,7 +200,7 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
             $status_text,
             $request_reason !== '' ? $request_reason : __('Not provided', 'community-calendar-study-rooms')
         );
-        $email_context = array('name' => $booking['name'], 'room' => $booking['room_name'], 'date' => $booking['date'],
+        $email_context = array('name' => $booking['name'], 'email' => $booking['email'], 'room' => $booking['room_name'], 'date' => $booking['date'],
             'start' => $start_label, 'end' => $end_label);
         if ($settings['notifications']['notify_staff_room_requests'] && $settings['notifications']['room_request_recipients'] !== false) {
             $recipients = $settings['notifications']['room_request_recipients'] ?: array($settings['notifications']['staff_email']);
@@ -311,9 +313,11 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
     $start_label = mysql2date('g:i A', $booking->booking_date . ' ' . $booking->starts_at);
     $end_label = mysql2date('g:i A', $booking->booking_date . ' ' . $booking->ends_at);
     $message = sprintf(
-            __("Hello %1\$s,\n\n%2\$s.\nRoom: %3\$s\nDate: %4\$s\nTime: %5\$s to %6\$s", 'community-calendar-study-rooms'),
+            __("Hello %1\$s,\n\n%2\$s.\n\nRequester Name: %3\$s\nRequester Email: %4\$s\nRoom: %5\$s\nDate: %6\$s\nTime: %7\$s to %8\$s", 'community-calendar-study-rooms'),
             $booking->requester_name,
             $subjects[$status],
+            $booking->requester_name,
+            $booking->requester_email,
             $room_name,
             $booking->booking_date,
             $start_label,
@@ -323,7 +327,7 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
         $message .= "\n\n" . __('Staff comment:', 'community-calendar-study-rooms') . "\n" . $comment;
     }
     return calsys_send_email($booking->requester_email, $subjects[$status], $message, 'room_' . $status,
-        array('name' => $booking->requester_name, 'room' => $room_name, 'date' => $booking->booking_date,
+        array('name' => $booking->requester_name, 'email' => $booking->requester_email, 'room' => $room_name, 'date' => $booking->booking_date,
             'start' => $start_label, 'end' => $end_label, 'comment' => $comment));
 }
 

@@ -7,7 +7,7 @@ define('HOUR_IN_SECONDS', 3600);
 function add_filter() {}
 function add_action() {}
 function plugin_basename($file) { return basename(dirname($file)) . '/' . basename($file); }
-function wp_remote_get($url, $args) { global $response; return $response; }
+function wp_remote_get($url, $args) { global $response, $requested_url; $requested_url = $url; return $response; }
 function is_wp_error($value) { return $value instanceof WP_Error; }
 function wp_remote_retrieve_response_code($value) { return $value['code']; }
 function wp_remote_retrieve_body($value) { return $value['body']; }
@@ -39,13 +39,14 @@ $plugin = plugin_basename(CALSYS_PLUGIN_FILE);
 $release = array(
     'tag_name' => 'v0.09.19', 'draft' => false, 'prerelease' => false,
     'assets' => array(array(
-        'name' => 'CommonsCal-0.09.19.zip', 'state' => 'uploaded',
-        'browser_download_url' => 'https://github.com/cleclair-sudo/CommonsCal/releases/download/v0.09.19/CommonsCal-0.09.19.zip',
+        'name' => 'CommonCalendar-0.09.19.zip', 'state' => 'uploaded',
+        'browser_download_url' => 'https://github.com/cleclair-sudo/CommonsCal/releases/download/v0.09.19/CommonCalendar-0.09.19.zip',
     )),
 );
 $response = array('code' => 200, 'body' => json_encode($release));
 $error = true;
 $result = calsys_github_update(false, array(), $plugin);
+expect($requested_url === 'https://api.github.com/repos/cleclair-sudo/CommonsCal/releases/latest', 'Update check must use the existing GitHub repository');
 expect($result['version'] === '0.09.19' && $result['package'] === $release['assets'][0]['browser_download_url'] && !$error, 'Valid release not offered');
 expect(calsys_github_update('other', array(), 'other/plugin.php') === 'other', 'Another plugin was modified');
 
@@ -60,11 +61,14 @@ expect(calsys_github_update(false, array(), $plugin) === false && $error, 'HTTP 
 
 $wp_filesystem = new TestFilesystem();
 $upgrader = new Plugin_Upgrader();
-$upgrader->new_plugin_data = array('Name' => 'CommonsCal', 'Version' => '0.09.19', 'UpdateURI' => 'https://github.com/cleclair-sudo/CommonsCal');
+$upgrader->new_plugin_data = array('Name' => 'CommonCalendar', 'Version' => '0.09.19', 'UpdateURI' => 'https://github.com/cleclair-sudo/CommonsCal');
 $updates = (object) array('response' => array($plugin => (object) array('new_version' => '0.09.19')));
 $source = '/tmp/community-calendar-study-rooms/';
 $hook = array('action' => 'update', 'plugin' => $plugin);
 expect(calsys_check_update_package($source, '', $upgrader, $hook) === $source, 'Valid update package rejected');
+$upgrader->new_plugin_data['Name'] = 'CommonsCal';
+expect(is_wp_error(calsys_check_update_package($source, '', $upgrader, $hook)), 'Old plugin name accepted');
+$upgrader->new_plugin_data['Name'] = 'CommonCalendar';
 $upgrader->new_plugin_data['Version'] = '0.09.18';
 expect(is_wp_error(calsys_check_update_package($source, '', $upgrader, $hook)), 'Mismatched package version accepted');
 expect(is_wp_error(calsys_check_update_package($source, '', $upgrader, array('plugin' => $plugin))), 'Mismatched bulk update accepted');

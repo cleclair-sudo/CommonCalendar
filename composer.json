@@ -1,6 +1,6 @@
 {
     "name": "cleclair-sudo/commonscal",
-    "description": "CommonsCal WordPress plugin",
+    "description": "CommonCalendar WordPress plugin",
     "type": "wordpress-plugin",
     "require": {
         "php": ">=7.4",

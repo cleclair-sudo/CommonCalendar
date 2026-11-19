@@ -47,7 +47,7 @@ function calsys_report_data($type, $start, $end) {
     }
     $rows = $wpdb->get_results($wpdb->prepare($sql, $args), ARRAY_A);
     if ($wpdb->last_error || !is_array($rows)) {
-        error_log('CommonsCal: unable to load ' . $type . ' report: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load ' . $type . ' report: ' . $wpdb->last_error);
         return false;
     }
     foreach ($rows as &$row) {

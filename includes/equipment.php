@@ -12,7 +12,7 @@ function calsys_equipment_for_source($source_type, $source_id, $lock = false) {
         $source_id
     ));
     if ($wpdb->last_error || !is_array($rows)) {
-        error_log('CommonsCal: unable to load equipment reservations: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load equipment reservations: ' . $wpdb->last_error);
         return false;
     }
     $quantities = array();
@@ -33,7 +33,7 @@ function calsys_equipment_description($source_type, $source_id) {
         $source_id
     ));
     if ($wpdb->last_error || !is_array($rows)) {
-        error_log('CommonsCal: unable to load requested equipment: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load requested equipment: ' . $wpdb->last_error);
         return false;
     }
     $labels = array();
@@ -104,7 +104,7 @@ function calsys_sync_equipment($source_type, $source_id, $items, $starts_at, $en
             $ids
         ));
         if ($wpdb->last_error || !is_array($inventory) || count($inventory) !== count($ids)) {
-            error_log('CommonsCal: unable to lock equipment inventory: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to lock equipment inventory: ' . $wpdb->last_error);
             return 'error';
         }
         foreach ($inventory as $item) {
@@ -126,7 +126,7 @@ function calsys_sync_equipment($source_type, $source_id, $items, $starts_at, $en
                 $source_id
             ));
             if ($wpdb->last_error || !is_array($overlaps)) {
-                error_log('CommonsCal: unable to check equipment availability: ' . $wpdb->last_error);
+                error_log('CommonCalendar: unable to check equipment availability: ' . $wpdb->last_error);
                 return 'error';
             }
             foreach ($overlaps as $overlap) {
@@ -140,7 +140,7 @@ function calsys_sync_equipment($source_type, $source_id, $items, $starts_at, $en
         }
     }
     if ($wpdb->delete($reservation_table, array('source_type' => $source_type, 'source_id' => $source_id)) === false) {
-        error_log('CommonsCal: unable to replace equipment reservations: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to replace equipment reservations: ' . $wpdb->last_error);
         return 'error';
     }
     foreach ($items as $id => $quantity) {
@@ -153,7 +153,7 @@ function calsys_sync_equipment($source_type, $source_id, $items, $starts_at, $en
             'quantity' => $quantity,
             'status' => $status,
         )) === false) {
-            error_log('CommonsCal: unable to save equipment reservation: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to save equipment reservation: ' . $wpdb->last_error);
             return 'error';
         }
     }
@@ -165,7 +165,7 @@ function calsys_equipment_fields($selected = array()) {
     global $wpdb;
     $items = $wpdb->get_results("SELECT id, name, quantity, active FROM " . calsys_table('equipment') . " ORDER BY name ASC, id ASC");
     if ($wpdb->last_error || !is_array($items)) {
-        error_log('CommonsCal: unable to load equipment inventory: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load equipment inventory: ' . $wpdb->last_error);
         return '<p>' . esc_html__('Equipment is temporarily unavailable. Please contact staff.', 'community-calendar-study-rooms') . '</p>';
     }
     ob_start();
@@ -213,7 +213,7 @@ function calsys_save_equipment() {
         ));
         if (!$locked || $wpdb->last_error || !is_array($reservations)) {
             $wpdb->query('ROLLBACK');
-            error_log('CommonsCal: unable to update equipment inventory: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to update equipment inventory: ' . $wpdb->last_error);
             calsys_admin_redirect('calsys-settings', 'invalid');
         }
         foreach ($reservations as $reservation) {
@@ -229,7 +229,7 @@ function calsys_save_equipment() {
     }
     if ($saved === false || $wpdb->query('COMMIT') === false) {
         $wpdb->query('ROLLBACK');
-        error_log('CommonsCal: unable to save equipment inventory: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to save equipment inventory: ' . $wpdb->last_error);
         calsys_admin_redirect('calsys-settings', 'invalid');
     }
     calsys_admin_redirect('calsys-settings', 'saved');
@@ -241,7 +241,7 @@ function calsys_admin_equipment_settings() {
     global $wpdb;
     $items = $wpdb->get_results("SELECT id, name, quantity, active FROM " . calsys_table('equipment') . " ORDER BY name ASC, id ASC");
     if ($wpdb->last_error || !is_array($items)) {
-        error_log('CommonsCal: unable to load equipment settings: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load equipment settings: ' . $wpdb->last_error);
         echo '<div class="notice notice-error"><p>' . esc_html__('Equipment inventory could not be loaded. Please check the site error log.', 'community-calendar-study-rooms') . '</p></div>';
         return;
     }

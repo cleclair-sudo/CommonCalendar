@@ -15,7 +15,7 @@ function calsys_github_update($update, $plugin_data, $plugin_file) {
     ));
     if (is_wp_error($response) || wp_remote_retrieve_response_code($response) !== 200) {
         $detail = is_wp_error($response) ? $response->get_error_message() : 'HTTP ' . wp_remote_retrieve_response_code($response);
-        error_log('CommonsCal: GitHub update check failed: ' . $detail);
+        error_log('CommonCalendar: GitHub update check failed: ' . $detail);
         set_site_transient('calsys_update_error', 1, 12 * HOUR_IN_SECONDS);
         return false;
     }
@@ -24,13 +24,13 @@ function calsys_github_update($update, $plugin_data, $plugin_file) {
     if (!is_array($release) || !isset($release['tag_name'], $release['assets'], $release['draft'], $release['prerelease']) ||
         !is_string($release['tag_name']) || !preg_match('/^v?(\d+(?:\.\d+){1,3})$/', $release['tag_name'], $matches) ||
         !is_array($release['assets']) || $release['draft'] !== false || $release['prerelease'] !== false) {
-        error_log('CommonsCal: GitHub returned invalid release information.');
+        error_log('CommonCalendar: GitHub returned invalid release information.');
         set_site_transient('calsys_update_error', 1, 12 * HOUR_IN_SECONDS);
         return false;
     }
 
     $version = $matches[1];
-    $filename = 'CommonsCal-' . $version . '.zip';
+    $filename = 'CommonCalendar-' . $version . '.zip';
     $package = 'https://github.com/cleclair-sudo/CommonsCal/releases/download/' . rawurlencode($release['tag_name']) . '/' . $filename;
     foreach ($release['assets'] as $asset) {
         if (is_array($asset) && ($asset['name'] ?? '') === $filename &&
@@ -44,7 +44,7 @@ function calsys_github_update($update, $plugin_data, $plugin_file) {
             );
         }
     }
-    error_log('CommonsCal: the latest GitHub release is missing the expected plugin ZIP.');
+    error_log('CommonCalendar: the latest GitHub release is missing the expected plugin ZIP.');
     set_site_transient('calsys_update_error', 1, 12 * HOUR_IN_SECONDS);
     return false;
 }
@@ -61,7 +61,7 @@ function calsys_check_update_package($source, $remote_source, $upgrader, $hook_e
     if (!($upgrader instanceof Plugin_Upgrader) ||
         basename(untrailingslashit($source)) !== dirname(plugin_basename(CALSYS_PLUGIN_FILE)) ||
         !$wp_filesystem->exists(trailingslashit($source) . 'community-calendar-study-rooms.php')) {
-        return new WP_Error('calsys_invalid_update', __('The CommonsCal update ZIP has an invalid folder or plugin file.', 'community-calendar-study-rooms'));
+        return new WP_Error('calsys_invalid_update', __('The CommonCalendar update ZIP has an invalid folder or plugin file.', 'community-calendar-study-rooms'));
     }
     $checked = $upgrader->check_package($source);
     if (is_wp_error($checked)) {
@@ -70,10 +70,10 @@ function calsys_check_update_package($source, $remote_source, $upgrader, $hook_e
     $updates = get_site_transient('update_plugins');
     $expected = $updates->response[plugin_basename(CALSYS_PLUGIN_FILE)]->new_version ?? '';
     $data = $upgrader->new_plugin_data;
-    if (!is_array($data) || ($data['Name'] ?? '') !== 'CommonsCal' ||
+    if (!is_array($data) || ($data['Name'] ?? '') !== 'CommonCalendar' ||
         ($data['Version'] ?? '') !== $expected ||
         ($data['UpdateURI'] ?? '') !== 'https://github.com/cleclair-sudo/CommonsCal') {
-        return new WP_Error('calsys_invalid_update', __('The CommonsCal update ZIP does not match the advertised release.', 'community-calendar-study-rooms'));
+        return new WP_Error('calsys_invalid_update', __('The CommonCalendar update ZIP does not match the advertised release.', 'community-calendar-study-rooms'));
     }
     return $source;
 }
@@ -89,7 +89,7 @@ function calsys_update_error_notice() {
         return;
     }
     echo '<div class="notice notice-warning"><p>' .
-        esc_html__('CommonsCal could not check GitHub for updates. Ensure the repository is public and its latest release includes the plugin ZIP, or update by uploading a ZIP.', 'community-calendar-study-rooms') .
+        esc_html__('CommonCalendar could not check GitHub for updates. Ensure the repository is public and its latest release includes the plugin ZIP, or update by uploading a ZIP.', 'community-calendar-study-rooms') .
         '</p></div>';
 }
 add_action('admin_notices', 'calsys_update_error_notice');

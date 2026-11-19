@@ -26,7 +26,7 @@
         var printDocument = printWindow.document;
         printDocument.documentElement.lang = document.documentElement.lang;
         printDocument.body.className = 'calsys-print-page';
-        var period = calendar.querySelector('.calsys-calendar-navigation span').textContent;
+        var period = calendar.querySelector('.calsys-calendar-navigation > span').textContent;
         var heading = calendar.querySelector('.calsys-calendar-heading h2').textContent;
         printDocument.title = heading + ' - ' + period;
         if (button.getAttribute('data-calsys-print') === 'events') {

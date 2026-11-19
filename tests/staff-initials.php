@@ -12,6 +12,8 @@ register_shutdown_function(function () use ($fixture) {
 define('ABSPATH', $fixture . DIRECTORY_SEPARATOR);
 define('CALSYS_PLUGIN_FILE', __FILE__);
 define('CALSYS_DB_VERSION', '15');
+define('DAY_IN_SECONDS', 86400);
+$notification_mode = $argv[1] ?? '';
 
 class InitialsRedirect extends Exception {
     public $notice;
@@ -62,11 +64,20 @@ function get_role($name) { return null; }
 function wp_next_scheduled($name) { return true; }
 function update_option($name, $value) { $GLOBALS['updated_options'][$name] = $value; }
 function get_option($name, $default = false) {
+    if (strpos($name, 'calsys_room_review_') === 0) { return $GLOBALS['review_options'][$name] ?? $default; }
     if ($name === 'calsys_db_version') { return $GLOBALS['previous_db_version']; }
     if ($name === 'admin_email') { return 'admin@example.org'; }
     if ($name === 'time_format') { return 'H:i'; }
     if ($name === 'calsys_settings') {
-        return array('notifications' => array('notify_staff_room_requests' => 1, 'email_room_requester' => 1));
+        $notifications = array('notify_staff_room_requests' => $GLOBALS['notification_mode'] !== 'disabled' ? 1 : 0, 'email_room_requester' => 1);
+        if ($GLOBALS['notification_mode'] === 'multiple') {
+            $notifications['room_request_recipients'] = array('first@example.org', 'second@example.org');
+        } elseif ($GLOBALS['notification_mode'] === 'invalid') {
+            $notifications['room_request_recipients'] = array('not-an-address');
+        }
+        $notifications['room_email_review_enabled'] = $GLOBALS['notification_mode'] === 'invalid_toggle' ? null : ($GLOBALS['notification_mode'] === 'links_off' ? 0 : 1);
+        $notifications['room_email_review_days'] = $GLOBALS['notification_mode'] === 'invalid_duration' ? 'invalid' : ($GLOBALS['notification_mode'] === 'never' ? 0 : ($GLOBALS['notification_mode'] === 'custom' ? 30 : ($GLOBALS['notification_mode'] === 'single_day' ? 1 : 7)));
+        return array('notifications' => $notifications, 'room_approval_required' => $GLOBALS['notification_mode'] === 'confirmed' ? 0 : 1);
     }
     return $default;
 }
@@ -81,7 +92,15 @@ function esc_html__($value) { return esc_html($value); }
 function esc_attr__($value) { return esc_attr($value); }
 function esc_html_e($value) { echo esc_html($value); }
 function esc_attr_e($value) { echo esc_attr($value); }
-function admin_url($value) { return '/wp-admin/' . $value; }
+function admin_url($value) { return ($GLOBALS['notification_mode'] === 'insecure' ? 'http' : 'https') . '://example.org/wp-admin/' . $value; }
+function add_query_arg($args, $url) { return $url . '?' . http_build_query($args); }
+function add_option($name, $value, $deprecated = '', $autoload = false) {
+    if ($GLOBALS['notification_mode'] === 'save_failure') { return false; }
+    $GLOBALS['review_options'][$name] = $value;
+    return true;
+}
+function delete_option($name) { unset($GLOBALS['review_options'][$name]); return true; }
+function wp_schedule_single_event($timestamp, $hook, $args, $wp_error) { return true; }
 function wp_nonce_field() {}
 function wp_create_nonce() { return 'nonce'; }
 function selected($value, $expected) { if ($value === $expected) { echo 'selected'; } }
@@ -90,7 +109,7 @@ function wp_date($format, $timestamp, $timezone) { return (new DateTimeImmutable
 function mysql2date($format, $value) { return date($format, strtotime($value)); }
 function wp_mail($to, $subject, $body, $headers = array()) {
     $GLOBALS['sent_mail'][] = compact('to', 'subject', 'body');
-    return true;
+    return $to !== 'first@example.org';
 }
 function get_privacy_policy_url() { return ''; }
 function calsys_equipment_fields() { return ''; }
@@ -120,6 +139,7 @@ function calsys_sync_linked_room_reservations($type, $id, $room, $start, $end, $
 }
 function calsys_sync_equipment() { return 'saved'; }
 function calsys_booking_conflict() { return false; }
+function calsys_has_confirmed_booking_conflict() { return false; }
 function calsys_room_is_within_hours() { return true; }
 function calsys_valid_booking_input() {
     return array('room_id' => 1, 'room_name' => 'Room', 'name' => 'Patron', 'email' => 'test@example.org',
@@ -212,8 +232,35 @@ try { calsys_save_booking(false); expect(false, 'Expected public booking redirec
     expect($result->notice === 'room_request_sent', 'Public room requests must not require initials');
 }
 expect(!array_key_exists('staff_initials', $wpdb->writes[4][1]), 'Public requests must not supply staff initials');
-expect(count($sent_mail) === 2 && strpos($sent_mail[0]['body'], '1:37 PM to 2:00 PM') !== false &&
-    strpos($sent_mail[1]['body'], '1:37 PM to 2:00 PM') !== false, 'Public room request emails must use 12-hour times for staff and requesters');
+$expected_recipients = $notification_mode === 'multiple' ? array('first@example.org', 'second@example.org', 'test@example.org')
+    : (in_array($notification_mode, array('disabled', 'invalid'), true) ? array('test@example.org') : array('admin@example.org', 'test@example.org'));
+expect(array_column($sent_mail, 'to') === $expected_recipients,
+    'Room alerts must use the configured list, continue after a failed send, and retain the legacy default');
+foreach ($sent_mail as $notification) {
+    expect(strpos($notification['body'], '>Room:</strong> Room') !== false &&
+        strpos($notification['body'], '>Date:</strong> 2026-12-01') !== false &&
+        strpos($notification['body'], '>Time:</strong> 1:37 PM to 2:00 PM') !== false &&
+        strpos($notification['body'], '>Status:</strong> ' . ($notification_mode === 'confirmed' ? 'confirmed' : 'awaiting staff approval')) !== false &&
+        strpos($notification['body'], '>Reason:</strong> Not provided') !== false,
+        'Room request emails must display the original booking details as labeled fields');
+}
+foreach ($sent_mail as $notification) {
+    $staff_message = $notification['to'] !== 'test@example.org';
+    if ($staff_message && !in_array($notification_mode, array('confirmed', 'insecure', 'save_failure', 'links_off', 'invalid_toggle', 'invalid_duration'), true)) {
+        $expected_expiry = $notification_mode === 'never' ? 'do not expire' : ($notification_mode === 'custom' ? 'expire after 30 days' : ($notification_mode === 'single_day' ? 'expire after 1 day' : 'expire after 7 days'));
+        expect(strpos($notification['body'], '>Approve request</a>') !== false &&
+            strpos($notification['body'], '>Deny request</a>') !== false &&
+            strpos($notification['body'], $expected_expiry) !== false, 'Pending staff alerts must contain both action links with their actual validity');
+    } else {
+        expect(strpos($notification['body'], '>Approve request</a>') === false &&
+            strpos($notification['body'], '>Deny request</a>') === false &&
+            strpos($notification['body'], 'calsys_room_email_review') === false, 'Requesters and already-confirmed bookings must not receive action links');
+    }
+    if ($staff_message && in_array($notification_mode, array('insecure', 'save_failure', 'invalid_duration'), true)) {
+        expect(strpos($notification['body'], 'Email approval links could not be created') !== false,
+            'Staff must be told when approval links cannot be created');
+    }
+}
 
 $_POST = array('calsys_frontend' => '1', 'staff_booking' => '1', 'public_event' => '1', 'room_id' => '1',
     'booking_date' => '2026-12-01', 'starts_at' => '10:00', 'ends_at' => '11:00', 'staff_initials' => 'IJ');
@@ -243,4 +290,15 @@ try { calsys_save_staff_entry(); expect(false, 'Expected staff creation redirect
 expect($wpdb->writes[5][1]['starts_at'] === '2026-12-02 13:37:00', 'Split staff datetime fields must retain the selected minute');
 $staff = false;
 expect(strpos(calsys_front_room_form(), 'name="staff_initials"') === false, 'The public room request form must not ask for staff initials');
+if ($notification_mode === '') {
+    foreach (array('multiple', 'disabled', 'invalid', 'confirmed', 'insecure', 'save_failure', 'links_off', 'never', 'custom', 'single_day', 'invalid_toggle', 'invalid_duration') as $mode) {
+        $process = proc_open(array(PHP_BINARY, __FILE__, $mode), array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+        expect(is_resource($process), 'Could not start room notification test: ' . $mode);
+        fclose($pipes[0]);
+        $output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        expect(proc_close($process) === 0, 'Room notification test failed: ' . $mode . ': ' . $output);
+    }
+}
 echo "Staff initials passed.\n";

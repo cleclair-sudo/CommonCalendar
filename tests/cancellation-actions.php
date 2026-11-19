@@ -40,8 +40,10 @@ function sanitize_text_field($value) { return trim(strip_tags($value)); }
 function sanitize_textarea_field($value) { return trim(strip_tags($value)); }
 function sanitize_email($value) { return filter_var($value, FILTER_SANITIZE_EMAIL); }
 function is_email($value) { return filter_var($value, FILTER_VALIDATE_EMAIL); }
+function esc_html($value) { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
 function wp_unslash($value) { return $value; }
 function get_option($name, $default = false) { return $GLOBALS['options'][$name] ?? $default; }
+function delete_option($name) { unset($GLOBALS['options'][$name]); return true; }
 function current_time($format) { return '2026-11-14 10:00:00'; }
 function mysql2date($format, $date) { return date($format, strtotime($date)); }
 function calsys_require_staff() { if (empty($GLOBALS['authorized'])) { throw new RuntimeException('Not authorized'); } }
@@ -90,14 +92,14 @@ $fail_email = null;
 expect(delete_event_with("Weather <b>closure</b>") === 'event_deleted', 'An ongoing event must be deleted and notify attendees');
 expect(count($mail) === 3 && array_column($mail, 'to') === array('alex@example.org', 'pat@example.org', 'sam@example.org'), 'Registered and waitlisted attendees must each receive an email');
 foreach ($mail as $message) {
-    expect(strpos($message['body'], 'Event cancelled: Story time') !== false && strpos($message['body'], 'Weather closure') !== false &&
+    expect(strpos(strip_tags($message['body']), 'Event cancelled: Story time') !== false && strpos($message['body'], 'Weather closure') !== false &&
         strpos($message['body'], 'scheduled for 2026-11-14 9:00 AM has been cancelled') !== false &&
         strpos($message['body'], '<b>') === false, 'An older custom template must include cancellation details and the sanitized message');
 }
 $mail = array();
 $fail_email = 'pat@example.org';
 expect(delete_event_with('0') === 'event_deleted_email_failed' && count($mail) === 3 &&
-    strpos($mail[0]['body'], "Staff comment:\n0") !== false, 'Failed sends must be reported without skipping other recipients or the message 0');
+    strpos($mail[0]['body'], "Staff comment:<br>\n0") !== false, 'Failed sends must be reported without skipping other recipients or the message 0');
 $fail_email = null;
 $mail = array();
 $wpdb->attendees[] = (object) array('name' => 'No email', 'email' => '');
@@ -114,10 +116,12 @@ $wpdb->deletions = array();
 expect(delete_event_with(array('invalid')) === 'invalid' && !$wpdb->deletions, 'Invalid event comments must not delete anything');
 expect(delete_event_with(str_repeat('x', 16001)) === 'invalid' && !$wpdb->deletions, 'Oversized event comments must not delete anything');
 $wpdb->booking->source_type = 'private';
+$options['calsys_room_review_booking_7'] = array('expires' => 0);
 expect(delete_room_with("Closed <b>today</b>") === 'room_booking_deleted' && count($mail) === 1 &&
     $mail[0]['to'] === 'alex@example.org' && substr_count($mail[0]['body'], 'Closed today') === 1 &&
     strpos($mail[0]['body'], 'Your room booking was cancelled') !== false &&
     strpos($mail[0]['body'], '10:00 AM to 11:00 AM') !== false, 'Staff-created private bookings must notify the contact once with 12-hour cancellation details');
+expect(!isset($options['calsys_room_review_booking_7']), 'Deleting a booking must remove its never-expiring review token');
 $mail = array();
 $wpdb->booking->source_type = '';
 $fail_email = 'alex@example.org';

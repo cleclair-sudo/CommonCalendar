@@ -80,7 +80,7 @@ function calsys_promote_event_waitlist($event_id) {
     ));
     $promoted = $event ? calsys_promote_waitlist_locked($event) : false;
     if ($promoted === false || $wpdb->query('COMMIT') === false) {
-        error_log('CommonsCal: unable to promote event waitlist: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to promote event waitlist: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         return 'error';
     }
@@ -118,7 +118,7 @@ function calsys_cancel_event_attendee() {
     }
     $promoted = $kind === 'registration' ? calsys_promote_waitlist_locked($event) : array();
     if ($promoted === false || $wpdb->query('COMMIT') === false) {
-        error_log('CommonsCal: unable to cancel event registration or promote waitlist: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to cancel event registration or promote waitlist: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         calsys_admin_redirect('calsys-event-registrations', 'invalid', $extra);
     }
@@ -161,7 +161,7 @@ function calsys_reconcile_waitlists() {
         (int) $settings['max_capacity']
     ));
     if ($wpdb->last_error || !is_array($ids)) {
-        error_log('CommonsCal: unable to reconcile event waitlists: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to reconcile event waitlists: ' . $wpdb->last_error);
         return;
     }
     foreach ($ids as $id) {

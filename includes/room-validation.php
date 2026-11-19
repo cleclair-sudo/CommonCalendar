@@ -187,7 +187,7 @@ function calsys_check_room_availability() {
         global $wpdb;
         $active = $wpdb->get_var($wpdb->prepare("SELECT id FROM " . calsys_table('rooms') . " WHERE id = %d AND active = 1", (int) $room));
         if ($wpdb->last_error) {
-            error_log('CommonsCal: unable to check room availability: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to check room availability: ' . $wpdb->last_error);
             wp_send_json_error(array('message' => __('Room availability could not be checked. Please try again.', 'community-calendar-study-rooms')), 500);
         }
         if (!$active) {
@@ -205,7 +205,7 @@ function calsys_check_room_availability() {
         foreach ($segments as $segment) {
             $overlap = calsys_booking_conflict((int) $room, $segment['date'], $segment['start'], $segment['end'], $exclude_id);
             if ($overlap === null) {
-                error_log('CommonsCal: unable to check room conflicts: ' . $wpdb->last_error);
+                error_log('CommonCalendar: unable to check room conflicts: ' . $wpdb->last_error);
                 wp_send_json_error(array('message' => __('Room availability could not be checked. Please try again.', 'community-calendar-study-rooms')), 500);
             }
             if ($overlap) {

@@ -249,7 +249,7 @@ function calsys_save_event($frontend = false) {
     if ($series_choice !== null) {
         if ($series_choice === 'new') {
             if (!$wpdb->insert(calsys_table('series'), array('name' => $series_name), array('%s'))) {
-                error_log('CommonsCal: unable to create event series: ' . $wpdb->last_error);
+                error_log('CommonCalendar: unable to create event series: ' . $wpdb->last_error);
                 $wpdb->query('ROLLBACK');
                 calsys_action_redirect($frontend, 'calsys-events', 'invalid');
             }
@@ -381,7 +381,7 @@ function calsys_delete_event($frontend = false) {
         $event_id
     ));
     if ($wpdb->last_error || !is_array($attendees)) {
-        error_log('CommonsCal: unable to load event attendees for cancellation: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load event attendees for cancellation: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
@@ -390,7 +390,7 @@ function calsys_delete_event($frontend = false) {
         $event_id
     ));
     if ($wpdb->last_error || !is_array($waiting)) {
-        error_log('CommonsCal: unable to load event attendees for cancellation: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load event attendees for cancellation: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
@@ -407,7 +407,7 @@ function calsys_delete_event($frontend = false) {
     if ($event->ends_at > current_time('mysql')) {
         foreach (array_merge($attendees, $waiting) as $person) {
             if (!is_email($person->email)) {
-                error_log('CommonsCal: an event cancellation recipient has no valid email address.');
+                error_log('CommonCalendar: an event cancellation recipient has no valid email address.');
                 $email_failed = true;
                 continue;
             }

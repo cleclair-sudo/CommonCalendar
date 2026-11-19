@@ -2,6 +2,7 @@
 // Run with: php tests/settings-room-hours.php
 define('ABSPATH', __DIR__ . '/');
 define('CALSYS_PLUGIN_FILE', __FILE__);
+define('DAY_IN_SECONDS', 86400);
 
 class TestSettingsRedirect extends Exception {
     public $notice;
@@ -58,6 +59,20 @@ require __DIR__ . '/../includes/room-hours.php';
 require __DIR__ . '/../includes/core.php';
 require __DIR__ . '/../includes/admin-settings.php';
 
+if (($argv[1] ?? '') === 'reload-never') {
+    $options = json_decode(stream_get_contents(STDIN), true);
+    $notifications = calsys_get_settings()['notifications'];
+    expect($notifications['room_email_review_enabled'] === 0 && $notifications['room_email_review_days'] === 0,
+        'Disabled links and never-expiring duration must survive a settings reload');
+    $_GET = array();
+    ob_start();
+    calsys_admin_settings_page();
+    $html = ob_get_clean();
+    expect((bool) preg_match('/<option value="never"[^>]*selected/', $html) &&
+        (bool) preg_match('/<input name="notifications\[room_email_review_enabled\]"[^>]*>/', $html, $toggle) &&
+        strpos($toggle[0], 'checked') === false, 'The saved link settings must be reflected in the controls');
+    exit(0);
+}
 if (($argv[1] ?? '') === 'reload') {
     $options = json_decode(stream_get_contents(STDIN), true);
     $rules = calsys_get_settings()['booking_rules'];
@@ -66,6 +81,10 @@ if (($argv[1] ?? '') === 'reload') {
     $email = calsys_get_settings()['email_settings'];
     expect($email['from_email'] === 'calendar@example.org' && $email['logo_placement'] === 'bottom' && $email['templates']['event_reminder']['subject'] === 'Coming up: {event}', 'Reloading settings must retain email preferences');
     expect(calsys_get_settings()['notifications']['email_event_registrant'] === 0, 'An explicitly disabled confirmation preference must stay disabled');
+    expect(calsys_get_settings()['notifications']['room_request_recipients'] === array('one@example.org', 'two@example.org'), 'Room request recipients must survive a settings reload');
+    expect(calsys_get_settings()['notifications']['room_email_review_enabled'] === 1 &&
+        calsys_get_settings()['notifications']['room_email_review_days'] === 35, 'Link settings must survive a reload');
+    expect(calsys_get_settings()['calendar_display']['show_filter_heading'] === 1, 'The filter heading preference must survive a reload');
     $_GET = array();
     ob_start();
     calsys_admin_settings_page();
@@ -75,19 +94,28 @@ if (($argv[1] ?? '') === 'reload') {
     preg_match('/<input name="notifications\[email_event_registrant\]"[^>]*>/', $html, $confirmation);
     preg_match('/<input name="notifications\[email_event_reminders\]"[^>]*>/', $html, $reminder);
     expect(strpos($confirmation[0], 'checked') === false && strpos($reminder[0], 'checked') !== false, 'The displayed controls must reflect the independently saved settings');
+    preg_match('/<input name="calendar_display\[show_filter_heading\]"[^>]*>/', $html, $heading);
+    expect(!empty($heading[0]) && strpos($heading[0], 'checked') !== false, 'The filter heading setting must show its saved value');
+    expect(strpos($html, "one@example.org\ntwo@example.org") !== false && strpos($html, 'Room request notification addresses') !== false,
+        'The room request recipients control must display the saved list');
     exit(0);
 }
 
-$options = array('admin_email' => 'staff@example.org');
+$options = array('admin_email' => 'staff@example.org', 'calsys_settings' => array('calendar_display' => array('initial_month' => 'current')));
 $defaults = calsys_default_settings();
 expect($defaults['notifications']['email_event_registrant'] === 1, 'New settings must enable immediate registration confirmations by default');
+expect(calsys_get_settings()['notifications']['room_email_review_enabled'] === 1 &&
+    calsys_get_settings()['notifications']['room_email_review_days'] === 7, 'Existing settings must retain seven-day links by default');
+expect(calsys_get_settings()['notifications']['room_request_recipients'] === array(), 'Existing settings must default to the staff address for room request alerts');
+expect($defaults['calendar_display']['show_filter_heading'] === 0 && calsys_get_settings()['calendar_display']['show_filter_heading'] === 0, 'The filter heading must default to hidden for new and existing settings');
 $_POST = array(
     'calendar_colors' => $defaults['calendar_colors'],
     'staff_types' => array(),
     'event_categories' => array(),
     'booking_rules' => $defaults['booking_rules'],
     'event_registration' => $defaults['event_registration'],
-    'calendar_display' => array('week_start_day' => 'site', 'initial_month' => 'current'),
+    'calendar_display' => array('week_start_day' => 'site', 'initial_month' => 'current', 'show_filter_heading' => '1'),
+    'room_requests' => $defaults['room_requests'],
     'notifications' => array('staff_email' => 'staff@example.org'),
     'privacy' => $defaults['privacy'],
     'room_schedule_present' => '1',
@@ -107,6 +135,11 @@ $_POST['email_settings']['logo_placement'] = 'bottom';
 $_POST['email_settings']['templates']['event_reminder'] = array('subject' => 'Coming up: {event}', 'body' => 'Hi {name}, {datetime}');
 $_POST['notifications']['email_event_reminders'] = '1';
 $_POST['notifications']['email_event_registrant'] = '1';
+$_POST['notifications']['room_request_recipients'] = "One@example.org, two@example.org\nONE@example.org";
+$_POST['notifications']['room_email_review_present'] = '1';
+$_POST['notifications']['room_email_review_enabled'] = '1';
+$_POST['notifications']['room_email_review_duration'] = 'days';
+$_POST['notifications']['room_email_review_days'] = '35';
 $_POST['weekly_hours'][1] = array('mode' => 'open', 'open' => '9:00 AM', 'close' => '5:00 PM');
 $_POST['weekly_hours'][0] = array('mode' => 'closed', 'open' => '', 'close' => '');
 
@@ -114,6 +147,11 @@ expect(save_settings() === 'settings_saved', 'Valid opening hours must save');
 expect($nonce_action === 'calsys_save_settings', 'Settings save must check its nonce');
 $saved = $options['calsys_settings'];
 expect($saved['notifications']['email_event_registrant'] === 1 && $saved['notifications']['email_event_reminders'] === 1, 'Both event email settings must save when enabled');
+expect($saved['notifications']['room_request_recipients'] === array('one@example.org', 'two@example.org') &&
+    $saved['notifications']['staff_email'] === 'staff@example.org', 'Room recipients must save separately and remove duplicates');
+expect($saved['notifications']['room_email_review_enabled'] === 1 && $saved['notifications']['room_email_review_days'] === 35,
+    'Custom link duration and enabled state must save');
+expect($saved['calendar_display']['show_filter_heading'] === 1, 'Enabling the filter heading must save');
 unset($_POST['notifications']['email_event_registrant']);
 expect(save_settings() === 'settings_saved', 'Disabling the confirmation must save');
 $saved = $options['calsys_settings'];
@@ -138,6 +176,27 @@ fclose($pipes[1]);
 fclose($pipes[2]);
 expect(proc_close($process) === 0, 'Settings reload failed: ' . $output);
 
+unset($_POST['calendar_display']['show_filter_heading']);
+expect(save_settings() === 'settings_saved' && $options['calsys_settings']['calendar_display']['show_filter_heading'] === 0, 'Disabling the filter heading must save');
+$saved = $options['calsys_settings'];
+foreach (array('bad-address', '!!!', array('person@example.org'), implode(',', array_map(function ($id) { return 'person' . $id . '@example.org'; }, range(1, 11)))) as $invalid_recipients) {
+    $_POST['notifications']['room_request_recipients'] = $invalid_recipients;
+    expect(save_settings() === 'settings_invalid_room_recipients' && $options['calsys_settings'] === $saved,
+        'Invalid or excessive room recipients must not overwrite settings');
+}
+$_POST['notifications']['room_request_recipients'] = "One@example.org, two@example.org\nONE@example.org";
+foreach (array('0', '-1', '1.5', str_repeat('9', 60), array('7')) as $invalid_days) {
+    $_POST['notifications']['room_email_review_days'] = $invalid_days;
+    expect(save_settings() === 'settings_invalid_room_review' && $options['calsys_settings'] === $saved,
+        'Invalid link durations must not overwrite settings');
+}
+$_POST['notifications']['room_email_review_days'] = '35';
+$_POST['notifications']['room_email_review_duration'] = 'invalid';
+expect(save_settings() === 'settings_invalid_room_review' && $options['calsys_settings'] === $saved, 'Invalid duration modes must not overwrite settings');
+$_POST['notifications']['room_email_review_duration'] = 'days';
+$_POST['calendar_display']['show_filter_heading'] = array('1');
+expect(save_settings() === 'settings_invalid' && $options['calsys_settings'] === $saved, 'Invalid filter heading input must not overwrite settings');
+unset($_POST['calendar_display']['show_filter_heading']);
 $_POST['weekly_hours'][1]['mode'] = 'unrestricted';
 expect(save_settings() === 'settings_invalid_hours', 'Times for an unrestricted day must produce an error');
 expect($options['calsys_settings'] === $saved, 'Invalid hours must not overwrite saved settings');
@@ -168,4 +227,25 @@ expect(strpos($section[1], 'notifications[email_event_registrant]') !== false &&
     strpos($section[1], 'notifications[email_event_reminders]') !== false &&
     strpos($section[1], 'Registrants must opt in') !== false &&
     strpos($section[1], 'type="submit"') !== false, 'The event email panel must contain both controls, opt-in guidance, and a save button');
+$_POST['notifications']['room_request_recipients'] = implode(',', array_map(function ($id) { return 'person' . $id . '@example.org'; }, range(1, 10)));
+expect(save_settings() === 'settings_saved' && count($options['calsys_settings']['notifications']['room_request_recipients']) === 10,
+    'Ten room request recipients must be accepted');
+$_POST['notifications']['room_request_recipients'] = '';
+expect(save_settings() === 'settings_saved' && $options['calsys_settings']['notifications']['room_request_recipients'] === array(),
+    'Clearing the list must restore the staff-address fallback');
+$_POST['notifications']['room_email_review_days'] = '3650';
+expect(save_settings() === 'settings_saved' && $options['calsys_settings']['notifications']['room_email_review_days'] === 3650,
+    'Durations must not have an arbitrary 90-day limit');
+unset($_POST['notifications']['room_email_review_enabled']);
+$_POST['notifications']['room_email_review_duration'] = 'never';
+expect(save_settings() === 'settings_saved' && $options['calsys_settings']['notifications']['room_email_review_enabled'] === 0 &&
+    $options['calsys_settings']['notifications']['room_email_review_days'] === 0, 'Disabled and never-expiring link settings must save');
+$process = proc_open(array(PHP_BINARY, __FILE__, 'reload-never'), array(0 => array('pipe', 'r'), 1 => array('pipe', 'w'), 2 => array('pipe', 'w')), $pipes);
+expect(is_resource($process), 'Could not start never-expiring settings reload test');
+fwrite($pipes[0], json_encode($options));
+fclose($pipes[0]);
+$output = stream_get_contents($pipes[1]) . stream_get_contents($pipes[2]);
+fclose($pipes[1]);
+fclose($pipes[2]);
+expect(proc_close($process) === 0, 'Never-expiring settings reload failed: ' . $output);
 echo "Settings room hours passed.\n";

@@ -63,7 +63,7 @@ function calsys_register_event() {
             $event->series_id
         ));
         if (!is_array($series_events) || $wpdb->last_error) {
-            error_log('CommonsCal: unable to load series events for registration: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to load series events for registration: ' . $wpdb->last_error);
             calsys_frontend_redirect('invalid_registration');
         }
         foreach ($series_events as $series_event) {
@@ -83,7 +83,7 @@ function calsys_register_event() {
             current_time('mysql')
         ));
         if (!is_array($recurrence_ids) || $wpdb->last_error) {
-            error_log('CommonsCal: unable to load recurring events for registration: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to load recurring events for registration: ' . $wpdb->last_error);
             calsys_frontend_redirect('invalid_registration');
         }
         $ids = array_merge($ids, array_map('intval', $recurrence_ids));
@@ -102,7 +102,7 @@ function calsys_register_event() {
     }
     $token = wp_generate_uuid4();
     if (!set_transient('calsys_registration_result_' . $token, $results, 10 * MINUTE_IN_SECONDS)) {
-        error_log('CommonsCal: unable to store multi-event registration results');
+        error_log('CommonCalendar: unable to store multi-event registration results');
         calsys_frontend_redirect('registration_results_unavailable');
     }
     calsys_frontend_redirect('registration_results', array('calsys_registration_result' => $token));
@@ -173,7 +173,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
         strtolower($email)
     ));
     if ($wpdb->last_error) {
-        error_log('CommonsCal: unable to check event registration: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to check event registration: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         return $result;
     }
@@ -183,7 +183,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
         strtolower($email)
     ));
     if ($wpdb->last_error) {
-        error_log('CommonsCal: unable to check event waitlist: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to check event waitlist: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         return $result;
     }
@@ -192,7 +192,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
         $event_id
     ));
     if ($count === null || $count === false || $wpdb->last_error) {
-        error_log('CommonsCal: unable to check event waitlist: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to check event waitlist: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         return $result;
     }
@@ -217,7 +217,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
             'joined_at' => current_time('mysql'),
         ));
         if (!$inserted || $wpdb->query('COMMIT') === false) {
-            error_log('CommonsCal: unable to save event waitlist: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to save event waitlist: ' . $wpdb->last_error);
             $wpdb->query('ROLLBACK');
             return $result;
         }
@@ -241,7 +241,7 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
         'registered_at' => current_time('mysql'),
     ), array('%d', '%s', '%s', '%s', '%d', '%s'));
     if (!$inserted || $wpdb->query('COMMIT') === false) {
-        error_log('CommonsCal: unable to save event registration: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to save event registration: ' . $wpdb->last_error);
         $wpdb->query('ROLLBACK');
         return $result;
     }
@@ -361,7 +361,7 @@ function calsys_send_due_event_reminders() {
             $deadline
         ));
         if (!is_array($due) || $wpdb->last_error !== '') {
-            error_log('CommonsCal: unable to load pending event reminders: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to load pending event reminders: ' . $wpdb->last_error);
             return;
         }
         foreach ($due as $registration) {
@@ -375,7 +375,7 @@ function calsys_send_due_event_reminders() {
                 array('%d', '%s')
             );
             if ($claimed === false) {
-                error_log('CommonsCal: unable to claim an event reminder: ' . $wpdb->last_error);
+                error_log('CommonCalendar: unable to claim an event reminder: ' . $wpdb->last_error);
                 continue;
             }
             if ($claimed !== 1) {
@@ -403,7 +403,7 @@ function calsys_send_due_event_reminders() {
                     array('%d')
                 );
                 if ($reset === false) {
-                    error_log('CommonsCal: unable to retry a failed event reminder: ' . $wpdb->last_error);
+                    error_log('CommonCalendar: unable to retry a failed event reminder: ' . $wpdb->last_error);
                 }
             }
         }

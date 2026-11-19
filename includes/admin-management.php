@@ -67,8 +67,8 @@ function calsys_admin_home_page() {
 
     if ($upcoming_events_count === false || $pending_requests_count === false || $active_rooms_count === false ||
         $upcoming_staff_count === false || $upcoming_events === null || $feed_bookings === null || $upcoming_staff === null) {
-        error_log('CommonsCal: unable to load admin dashboard: ' . $wpdb->last_error);
-        echo '<div class="wrap"><h1>' . esc_html__('CommonsCal', 'community-calendar-study-rooms') . '</h1><div class="notice notice-error"><p>' .
+        error_log('CommonCalendar: unable to load admin dashboard: ' . $wpdb->last_error);
+        echo '<div class="wrap"><h1>' . esc_html__('CommonCalendar', 'community-calendar-study-rooms') . '</h1><div class="notice notice-error"><p>' .
             esc_html__('The dashboard could not load calendar data. Please check the site error log.', 'community-calendar-study-rooms') .
             '</p></div></div>';
         return;
@@ -124,7 +124,7 @@ function calsys_admin_home_page() {
     $calendar_url = admin_url('admin.php?page=');
     ?>
     <div class="wrap calsys-admin-page calsys-admin-home">
-        <h1><?php esc_html_e('CommonsCal', 'community-calendar-study-rooms'); ?></h1>
+        <h1><?php esc_html_e('CommonCalendar', 'community-calendar-study-rooms'); ?></h1>
         <p class="calsys-admin-intro"><?php esc_html_e('A quick overview of upcoming calendar activity and room requests.', 'community-calendar-study-rooms'); ?></p>
 
         <div class="calsys-admin-stats" aria-label="<?php esc_attr_e('Calendar overview', 'community-calendar-study-rooms'); ?>">
@@ -200,7 +200,7 @@ function calsys_admin_room_approvals_page() {
         <h1><?php esc_html_e('Room Approvals', 'community-calendar-study-rooms'); ?></h1>
         <p class="calsys-admin-intro"><?php esc_html_e('Review pending room requests and approve or deny each one.', 'community-calendar-study-rooms'); ?></p>
         <?php if (!is_array($requests)) :
-            error_log('CommonsCal: unable to load pending room requests: ' . $wpdb->last_error); ?>
+            error_log('CommonCalendar: unable to load pending room requests: ' . $wpdb->last_error); ?>
             <div class="notice notice-error"><p><?php esc_html_e('Room requests could not be loaded. Please check the site error log.', 'community-calendar-study-rooms'); ?></p></div>
         <?php elseif (!$requests) : ?>
             <div class="calsys-admin-card"><p class="calsys-admin-empty"><?php esc_html_e('No room requests are waiting for approval.', 'community-calendar-study-rooms'); ?></p></div>
@@ -276,7 +276,7 @@ function calsys_admin_event_registrations_page() {
     }
     $load_failed = $wpdb->last_error || !is_array($registrations) || !is_array($waitlist) || !is_array($events);
     if ($load_failed) {
-        error_log('CommonsCal: unable to load event registrations: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load event registrations: ' . $wpdb->last_error);
     }
     ?>
     <div class="wrap calsys-admin-page">
@@ -531,7 +531,7 @@ function calsys_admin_rooms_settings_panel() {
     }
     $rooms = $wpdb->get_results("SELECT * FROM $rooms_table ORDER BY name ASC");
     if (!is_array($rooms)) {
-        error_log('CommonsCal: unable to load room directory in settings: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load room directory in settings: ' . $wpdb->last_error);
         echo '<section class="calsys-admin-card"><div class="notice notice-error"><p>' .
             esc_html__('The room directory could not be loaded. Please check the site error log.', 'community-calendar-study-rooms') .
             '</p></div></section>';
@@ -691,7 +691,7 @@ function calsys_admin_rooms_page() {
     ));
     if (!is_array($rooms) || !is_array($bookings) || !is_array($room_calendar_events) || $room_calendar_load_failed ||
         $active_room_count === false || $pending_booking_count === false || $upcoming_booking_count === false) {
-        error_log('CommonsCal: unable to load room management data: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load room management data: ' . $wpdb->last_error);
         echo '<div class="wrap"><h1>' . esc_html__('Rooms', 'community-calendar-study-rooms') . '</h1><div class="notice notice-error"><p>' .
             esc_html__('Room data could not be loaded. Please check the site error log.', 'community-calendar-study-rooms') .
             '</p></div></div>';
@@ -804,7 +804,7 @@ function calsys_admin_staff_calendar_page() {
         $grid_start->format('Y-m-d H:i:s')
     ));
     if (!is_array($entries) || !is_array($calendar_entries)) {
-        error_log('CommonsCal: unable to load staff calendar admin page: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load staff calendar admin page: ' . $wpdb->last_error);
         echo '<div class="wrap"><h1>' . esc_html__('Staff calendar', 'community-calendar-study-rooms') . '</h1><div class="notice notice-error"><p>' .
             esc_html__('Staff schedule data could not be loaded. Please check the site error log.', 'community-calendar-study-rooms') .
             '</p></div></div>';

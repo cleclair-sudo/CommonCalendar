@@ -6,6 +6,7 @@ function add_action($hook, $callback, $priority = 10) { $GLOBALS['hooks'][$hook]
 function register_activation_hook() {}
 function register_deactivation_hook() {}
 function __($value) { return $value; }
+function _n($single, $plural, $count) { return $count === 1 ? $single : $plural; }
 function absint($value) { return abs((int) $value); }
 function sanitize_key($value) { return preg_replace('/[^a-z0-9_\-]/', '', strtolower($value)); }
 function sanitize_text_field($value) { return trim(preg_replace('/[\r\n]+/', ' ', strip_tags($value))); }
@@ -20,9 +21,10 @@ function wp_next_scheduled($hook) { return $GLOBALS['scheduled'][$hook] ?? false
 function wp_schedule_event($timestamp, $recurrence, $hook) { $GLOBALS['scheduled'][$hook] = $timestamp; return true; }
 function is_wp_error($value) { return false; }
 function get_theme_mod($name) { return 7; }
-function wp_get_attachment_image_url($id, $size) { return 'https://example.org/logo.png'; }
+function wp_get_attachment_image_url($id, $size) { return empty($GLOBALS['missing_logo']) ? 'https://example.org/logo.png' : false; }
 function esc_url($value) { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
 function esc_html($value) { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
+function esc_html__($value) { return esc_html($value); }
 function wp_mail($to, $subject, $body, $headers = array()) {
     $GLOBALS['mail'][] = compact('to', 'subject', 'body', 'headers');
     return $GLOBALS['mail_succeeds'] && $to !== ($GLOBALS['fail_to'] ?? null);
@@ -136,6 +138,7 @@ $email_settings['from_email'] = 'calendar@example.org';
 $email_settings['logo_placement'] = $bottom ? 'bottom' : 'top';
 $email_settings['templates']['event_reminder'] = array('subject' => 'Soon: {event}', 'body' => "Hi {name}\n{datetime}");
 $email_settings['templates']['event_registration'] = array('subject' => 'Booked: {event}', 'body' => 'Hello {name}, {datetime}');
+$email_settings['templates']['room_request_staff'] = array('subject' => 'New request', 'body' => 'Custom staff message');
 $email_settings['templates']['room_approved'] = array('subject' => 'Approved: {room}', 'body' => "Hi {name}\n{start} to {end}\n{comment}");
 $email_settings['templates']['room_cancelled'] = array('subject' => 'Cancelled: {room}', 'body' => "{message}\n{comment}");
 $options = array('admin_email' => 'staff@example.org', 'date_format' => 'Y-m-d', 'time_format' => 'H:i',
@@ -148,8 +151,14 @@ $wpdb = new ReminderDatabase();
 if ($defaults_only) {
     unset($options['calsys_settings']['email_settings']);
     $mail_succeeds = true;
-    calsys_send_email('person@example.org', 'Original subject', "Original\nmessage", 'event_reminder', array('name' => 'Alex'));
-    expect($mail[0]['subject'] === 'Original subject' && $mail[0]['body'] === "Original\nmessage" && $mail[0]['headers'] === array(), 'Existing sites must retain their plain-text messages and WordPress sender by default');
+    calsys_send_email('person@example.org', 'Original subject', "Original\nRoom: <Blue & green>\nmessage", 'event_reminder', array('name' => 'Private unused value'));
+    expect($mail[0]['subject'] === 'Original subject' &&
+        in_array('Content-Type: text/html; charset=UTF-8', $mail[0]['headers'], true) &&
+        count($mail[0]['headers']) === 1, 'Default messages must use HTML and retain the WordPress sender');
+    expect(strpos($mail[0]['body'], 'Original<br>') !== false &&
+        strpos($mail[0]['body'], '<strong style="color:#334b5f;">Room:</strong> &lt;Blue &amp; green&gt;') !== false &&
+        strpos($mail[0]['body'], '<Blue & green>') === false &&
+        strpos($mail[0]['body'], 'Private unused value') === false, 'Form-style fields must be escaped and contain only the rendered message');
     exit(0);
 }
 expect(calsys_validate_email_settings($email_settings) === $email_settings, 'Valid templates must validate');
@@ -200,9 +209,10 @@ try {
 }
 expect($mail[3]['to'] === 'staff@example.org', 'Test email must use the saved staff notification address');
 expect(calsys_send_email('person@example.org', 'Default subject', 'Default body', 'event_registration',
-    array('name' => 'Pat', 'event' => 'Book club', 'datetime' => 'December 1, 10:00')), 'Registration confirmation must be sent');
+    array('name' => 'Pat', 'event' => 'Book club', 'datetime' => 'December 1, 10:00', 'answers' => 'Private answer')), 'Registration confirmation must be sent');
 expect($mail[4]['subject'] === 'Booked: Book club' && strpos($mail[4]['body'], 'Hello Pat, December 1, 10:00') !== false &&
-    in_array('From: calendar@example.org', $mail[4]['headers'], true), 'Registration confirmation must use its template and configured sender');
+    strpos($mail[4]['body'], 'Private answer') === false &&
+    in_array('From: calendar@example.org', $mail[4]['headers'], true), 'Registration confirmation must use its template and configured sender without adding unused information');
 expect(calsys_send_email('person@example.org', 'Cancelled', 'The event was cancelled.', 'event_cancelled',
     array('comment' => 'Please check back')), 'Default cancellation template must send');
 expect(substr_count($mail[5]['body'], 'Please check back') === 1 && strpos($mail[5]['body'], 'The event was cancelled.') !== false,
@@ -211,6 +221,26 @@ expect(calsys_send_email('person@example.org', 'Cancelled', 'The room was cancel
     array('room' => 'Blue room', 'comment' => 'Please check back')), 'Customized cancellation template must send');
 expect(substr_count($mail[6]['body'], 'Please check back') === 1 && strpos($mail[6]['body'], 'The room was cancelled.') !== false,
     'Using both message and comment placeholders must not duplicate the staff message');
+expect(calsys_send_email('staff@example.org', 'Registration & details', "Event: Art & books\nQuestion: <script>alert('x')</script>\n\nThanks."), 'Staff details must send');
+expect(strpos($mail[7]['body'], 'Registration &amp; details') !== false &&
+    strpos($mail[7]['body'], '<strong style="color:#334b5f;">Event:</strong> Art &amp; books') !== false &&
+    strpos($mail[7]['body'], '&lt;script&gt;') !== false && strpos($mail[7]['body'], '<script>') === false &&
+    strpos($mail[7]['body'], "Thanks.") !== false, 'HTML must escape the subject and answers while formatting labeled fields');
+$missing_logo = true;
+expect(calsys_send_email('person@example.org', 'No logo', 'Still delivered'), 'Email must send when a configured logo is unavailable');
+expect(in_array('Content-Type: text/html; charset=UTF-8', $mail[8]['headers'], true) &&
+    strpos($mail[8]['body'], '<img') === false && strpos($mail[8]['body'], 'Still delivered') !== false,
+    'A missing logo must not prevent the HTML message from being delivered');
+$missing_logo = false;
+expect(calsys_send_email('staff@example.org', 'Original subject', 'Original body', 'room_request_staff', array(), array(
+    'approve' => 'https://example.org/review?token=abc&decision=approve',
+    'deny' => 'https://example.org/review?token=abc&decision=deny',
+    'days' => 7
+)), 'Staff email with customized template must send');
+expect(strpos($mail[9]['body'], 'Custom staff message') !== false &&
+    strpos($mail[9]['body'], 'token=abc&amp;decision=approve') !== false &&
+    strpos($mail[9]['body'], '>Deny request</a>') !== false,
+    'Approval links must remain usable with customized staff templates');
 $mail_succeeds = false;
 try {
     calsys_test_email();

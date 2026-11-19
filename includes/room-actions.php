@@ -190,7 +190,7 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         $end_label = mysql2date('g:i A', $booking['date'] . ' ' . $booking['end']);
         $booking_summary = sprintf(
             /* translators: 1: room, 2: date, 3: start time, 4: end time, 5: booking status, 6: reason */
-            __('Room: %1$s. Date: %2$s. Time: %3$s to %4$s. Status: %5$s. Reason: %6$s', 'community-calendar-study-rooms'),
+            __("Room: %1\$s\nDate: %2\$s\nTime: %3\$s to %4\$s\nStatus: %5\$s\nReason: %6\$s", 'community-calendar-study-rooms'),
             $booking['room_name'],
             $booking['date'],
             $start_label,
@@ -200,14 +200,25 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         );
         $email_context = array('name' => $booking['name'], 'room' => $booking['room_name'], 'date' => $booking['date'],
             'start' => $start_label, 'end' => $end_label);
-        if ($settings['notifications']['notify_staff_room_requests']) {
-            calsys_send_email(
-                $settings['notifications']['staff_email'],
-                __('New room booking request', 'community-calendar-study-rooms'),
-                $booking_summary,
-                'room_request_staff',
-                $email_context
-            );
+        if ($settings['notifications']['notify_staff_room_requests'] && $settings['notifications']['room_request_recipients'] !== false) {
+            $recipients = $settings['notifications']['room_request_recipients'] ?: array($settings['notifications']['staff_email']);
+            $room_review = array();
+            if ($booking_status === 'pending' && $settings['notifications']['room_email_review_enabled']) {
+                $room_review = calsys_create_room_email_review_links($booking_id, $settings['notifications']['room_email_review_days']);
+                if ($room_review === false) {
+                    $room_review = array('unavailable' => true);
+                }
+            }
+            foreach ($recipients as $recipient) {
+                calsys_send_email(
+                    $recipient,
+                    __('New room booking request', 'community-calendar-study-rooms'),
+                    $booking_summary,
+                    'room_request_staff',
+                    $email_context,
+                    $room_review
+                );
+            }
         }
         if ($settings['notifications']['email_room_requester']) {
             calsys_send_email(
@@ -216,8 +227,8 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
                     ? __('Room booking confirmed', 'community-calendar-study-rooms')
                     : __('Room request received', 'community-calendar-study-rooms'),
                 $booking_status === 'approved'
-                    ? sprintf(__('Hello %1$s, your room booking is confirmed. %2$s', 'community-calendar-study-rooms'), $booking['name'], $booking_summary)
-                    : sprintf(__('Hello %1$s, we received your room request. %2$s', 'community-calendar-study-rooms'), $booking['name'], $booking_summary),
+                    ? sprintf(__("Hello %1\$s, your room booking is confirmed.\n\n%2\$s", 'community-calendar-study-rooms'), $booking['name'], $booking_summary)
+                    : sprintf(__("Hello %1\$s, we received your room request.\n\n%2\$s", 'community-calendar-study-rooms'), $booking['name'], $booking_summary),
                 $booking_status === 'approved' ? 'room_booking_confirmed' : 'room_request_received',
                 $email_context
             );
@@ -280,7 +291,7 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
         return true;
     }
     if (!is_email($booking->requester_email ?? '')) {
-        error_log('CommonsCal: a room notification recipient has no valid email address.');
+        error_log('CommonCalendar: a room notification recipient has no valid email address.');
         return false;
     }
     $subjects = array(
@@ -294,7 +305,7 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
     global $wpdb;
     $room_name = $wpdb->get_var($wpdb->prepare("SELECT name FROM " . calsys_table('rooms') . " WHERE id = %d", $booking->room_id));
     if ($room_name === null || $room_name === false) {
-        error_log('CommonsCal: unable to load room name for status email: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load room name for status email: ' . $wpdb->last_error);
         return false;
     }
     $start_label = mysql2date('g:i A', $booking->booking_date . ' ' . $booking->starts_at);
@@ -314,6 +325,53 @@ function calsys_notify_room_status($booking, $status, $comment = '') {
     return calsys_send_email($booking->requester_email, $subjects[$status], $message, 'room_' . $status,
         array('name' => $booking->requester_name, 'room' => $room_name, 'date' => $booking->booking_date,
             'start' => $start_label, 'end' => $end_label, 'comment' => $comment));
+}
+
+/** Applies an authorized decision, including conflict checks and requester notification. */
+function calsys_apply_booking_decision($booking_id, $decision, $comment) {
+    global $wpdb;
+    $table = calsys_table('bookings');
+    if ($wpdb->query('START TRANSACTION') === false) {
+        error_log('CommonCalendar: unable to start a room decision transaction: ' . $wpdb->last_error);
+        return 'invalid';
+    }
+    $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d AND status = 'pending' FOR UPDATE", $booking_id));
+    if (!$booking) {
+        if ($wpdb->last_error) {
+            error_log('CommonCalendar: unable to load a pending room decision: ' . $wpdb->last_error);
+        }
+        $wpdb->query('ROLLBACK');
+        return 'invalid';
+    }
+    if ($decision === 'approve') {
+        $locked_room = $wpdb->get_var($wpdb->prepare("SELECT id FROM " . calsys_table('rooms') . " WHERE id = %d FOR UPDATE", $booking->room_id));
+        if (!$locked_room) {
+            error_log('CommonCalendar: unable to lock a room for an approval: ' . $wpdb->last_error);
+            $wpdb->query('ROLLBACK');
+            return 'invalid';
+        }
+        $has_conflict = calsys_booking_conflict($booking->room_id, $booking->booking_date, $booking->starts_at, $booking->ends_at, $booking_id);
+        if ($has_conflict === null) {
+            error_log('CommonCalendar: unable to check room approval conflicts.');
+            $wpdb->query('ROLLBACK');
+            return 'invalid';
+        }
+        if ($has_conflict) {
+            $wpdb->query('ROLLBACK');
+            return 'conflict';
+        }
+    }
+    $status = $decision === 'approve' ? 'approved' : 'denied';
+    $updated = $wpdb->update($table, array('status' => $status), array('id' => $booking_id, 'status' => 'pending'), array('%s'), array('%d', '%s'));
+    $equipment_updated = $wpdb->update(calsys_table('equipment_reservations'), array('status' => $status), array('source_type' => 'room', 'source_id' => $booking_id));
+    if ($updated !== 1 || $equipment_updated === false || $wpdb->query('COMMIT') === false) {
+        error_log('CommonCalendar: unable to save a room decision: ' . $wpdb->last_error);
+        $wpdb->query('ROLLBACK');
+        return 'invalid';
+    }
+    calsys_clear_room_email_review($booking_id);
+    $sent = calsys_notify_room_status($booking, $status, $comment);
+    return $sent ? $status : 'room_status_email_failed';
 }
 
 /** Approves or denies a pending room request after permission and conflict checks. */
@@ -336,40 +394,193 @@ function calsys_booking_decision() {
     if (strlen($comment) > 16000) {
         calsys_action_redirect($frontend, $admin_page, 'invalid');
     }
-
-    global $wpdb;
-    $table = calsys_table('bookings');
-    if ($wpdb->query('START TRANSACTION') === false) {
-        calsys_action_redirect($frontend, $admin_page, 'invalid');
-    }
-    $booking = $wpdb->get_row($wpdb->prepare("SELECT * FROM $table WHERE id = %d AND status = 'pending' FOR UPDATE", $booking_id));
-    if (!$booking) {
-        $wpdb->query('ROLLBACK');
-        calsys_action_redirect($frontend, $admin_page, 'invalid');
-    }
-    if ($decision === 'approve') {
-        $wpdb->get_var($wpdb->prepare("SELECT id FROM " . calsys_table('rooms') . " WHERE id = %d FOR UPDATE", $booking->room_id));
-        $has_conflict = calsys_booking_conflict($booking->room_id, $booking->booking_date, $booking->starts_at, $booking->ends_at, $booking_id);
-        if ($has_conflict === null) {
-            $wpdb->query('ROLLBACK');
-            calsys_action_redirect($frontend, $admin_page, 'invalid');
-        }
-        if ($has_conflict) {
-            $wpdb->query('ROLLBACK');
-            calsys_action_redirect($frontend, $admin_page, 'conflict');
-        }
-    }
-    $status = $decision === 'approve' ? 'approved' : 'denied';
-    $updated = $wpdb->update($table, array('status' => $status), array('id' => $booking_id, 'status' => 'pending'), array('%s'), array('%d', '%s'));
-    $equipment_updated = $wpdb->update(calsys_table('equipment_reservations'), array('status' => $status), array('source_type' => 'room', 'source_id' => $booking_id));
-    if ($updated === false || $equipment_updated === false || $wpdb->query('COMMIT') === false) {
-        $wpdb->query('ROLLBACK');
-        calsys_action_redirect($frontend, $admin_page, 'invalid');
-    }
-    $sent = calsys_notify_room_status($booking, $status, $comment);
-    calsys_action_redirect($frontend, $admin_page, $sent ? ($decision === 'approve' ? 'approved' : 'denied') : 'room_status_email_failed');
+    calsys_action_redirect($frontend, $admin_page, calsys_apply_booking_decision($booking_id, $decision, $comment));
 }
 add_action('admin_post_calsys_booking_decision', 'calsys_booking_decision');
+
+/** Creates bearer links for a pending request, storing only the token hash. */
+function calsys_create_room_email_review_links($booking_id, $days = 7) {
+    if (!is_int($booking_id) || $booking_id < 1) {
+        error_log('CommonCalendar: invalid room request for email approval links.');
+        return false;
+    }
+    $days = calsys_validate_room_email_review_days($days);
+    if ($days === false) {
+        error_log('CommonCalendar: invalid room email approval link duration.');
+        return false;
+    }
+    $endpoint = admin_url('admin-post.php');
+    if (strtolower((string) parse_url($endpoint, PHP_URL_SCHEME)) !== 'https') {
+        error_log('CommonCalendar: HTTPS is required for room request email approval links.');
+        return false;
+    }
+    try {
+        $token = bin2hex(random_bytes(32));
+    } catch (Exception $error) {
+        error_log('CommonCalendar: unable to generate a room request email approval token.');
+        return false;
+    }
+    $option = 'calsys_room_review_booking_' . (int) $booking_id;
+    $token_hash = hash('sha256', $token);
+    $now = time();
+    if ($days > intdiv(PHP_INT_MAX - $now, DAY_IN_SECONDS)) {
+        error_log('CommonCalendar: room email approval duration exceeds the supported date range.');
+        return false;
+    }
+    $expires = $days === 0 ? 0 : $now + $days * DAY_IN_SECONDS;
+    if (!add_option($option, array('booking_id' => (int) $booking_id, 'expires' => $expires, 'token_hash' => $token_hash), '', false)) {
+        error_log('CommonCalendar: unable to save a room request email approval token.');
+        return false;
+    }
+    if ($expires !== 0) {
+        $scheduled = wp_schedule_single_event($expires, 'calsys_expire_room_email_review', array($option, $token_hash), true);
+        if ($scheduled !== true) {
+            delete_option($option);
+            error_log('CommonCalendar: unable to schedule room request email token cleanup.');
+            return false;
+        }
+    }
+    return array(
+        'approve' => add_query_arg(array('action' => 'calsys_room_email_review', 'decision' => 'approve', 'booking_id' => (int) $booking_id, 'token' => $token), $endpoint),
+        'deny' => add_query_arg(array('action' => 'calsys_room_email_review', 'decision' => 'deny', 'booking_id' => (int) $booking_id, 'token' => $token), $endpoint),
+        'days' => $days,
+    );
+}
+
+/** Removes the current email review token after the request is decided or deleted. */
+function calsys_clear_room_email_review($booking_id) {
+    $option = 'calsys_room_review_booking_' . (int) $booking_id;
+    if (get_option($option, false) !== false && !delete_option($option)) {
+        error_log('CommonCalendar: unable to remove a room email approval token.');
+    }
+}
+
+/** Removes an expired email review token. */
+function calsys_expire_room_email_review($option, $token_hash = '') {
+    if (!is_string($option)) {
+        return;
+    }
+    if (preg_match('/^calsys_room_review_[a-f0-9]{64}$/D', $option)) {
+        delete_option($option);
+    } elseif (preg_match('/^calsys_room_review_booking_[1-9][0-9]*$/D', $option) && is_string($token_hash)) {
+        $review = get_option($option, false);
+        if (is_array($review) && isset($review['token_hash']) && is_string($review['token_hash']) &&
+            hash_equals($review['token_hash'], $token_hash)) {
+            delete_option($option);
+        }
+    }
+}
+add_action('calsys_expire_room_email_review', 'calsys_expire_room_email_review', 10, 2);
+
+/** Confirms and applies an email review link without requiring a staff login. */
+function calsys_room_email_review() {
+    add_filter('nocache_headers', function ($headers) {
+        $headers['Cache-Control'] = 'no-cache, must-revalidate, max-age=0, no-store, private';
+        return $headers;
+    });
+    nocache_headers();
+    header('Cache-Control: no-store, private, max-age=0');
+    header('Referrer-Policy: no-referrer');
+    header('X-Robots-Tag: noindex, nofollow');
+    header('X-Frame-Options: DENY');
+    header("Content-Security-Policy: frame-ancestors 'none'", false);
+
+    if (!is_ssl()) {
+        wp_die(esc_html__('A secure HTTPS connection is required to review this request.', 'community-calendar-study-rooms'), '', array('response' => 403));
+    }
+    $method = $_SERVER['REQUEST_METHOD'] ?? '';
+    if ($method !== 'GET' && $method !== 'POST') {
+        wp_die(esc_html__('This request method is not supported.', 'community-calendar-study-rooms'), '', array('response' => 405));
+    }
+    $input = $method === 'POST' ? $_POST : $_GET;
+    $token = isset($input['token']) && is_string($input['token']) ? wp_unslash($input['token']) : '';
+    $decision = isset($input['decision']) && is_string($input['decision']) ? wp_unslash($input['decision']) : '';
+    if (!preg_match('/^[a-f0-9]{64}$/D', $token) || !in_array($decision, array('approve', 'deny'), true)) {
+        wp_die(esc_html__('This review link is invalid or has expired.', 'community-calendar-study-rooms'), '', array('response' => 403));
+    }
+    if (!calsys_get_settings()['notifications']['room_email_review_enabled']) {
+        wp_die(esc_html__('Email approval links are temporarily turned off. Please contact the site administrator or try again later.', 'community-calendar-study-rooms'), '', array('response' => 403));
+    }
+    $link_booking_id = null;
+    if (array_key_exists('booking_id', $input)) {
+        $raw_booking_id = $input['booking_id'];
+        $link_booking_id = is_string($raw_booking_id) ? filter_var(wp_unslash($raw_booking_id), FILTER_VALIDATE_INT, array('options' => array('min_range' => 1))) : false;
+        if ($link_booking_id === false) {
+            wp_die(esc_html__('This review link is invalid or has expired.', 'community-calendar-study-rooms'), '', array('response' => 403));
+        }
+    }
+    $option = $link_booking_id === null ? 'calsys_room_review_' . hash('sha256', $token) : 'calsys_room_review_booking_' . $link_booking_id;
+    $review = get_option($option, false);
+    if (!is_array($review) || !isset($review['booking_id'], $review['expires']) ||
+        !is_int($review['booking_id']) || $review['booking_id'] < 1 || !is_int($review['expires']) || $review['expires'] < 0 ||
+        ($review['expires'] !== 0 && $review['expires'] <= time()) ||
+        ($link_booking_id !== null && ($review['booking_id'] !== $link_booking_id ||
+            !isset($review['token_hash']) || !is_string($review['token_hash']) || !hash_equals($review['token_hash'], hash('sha256', $token))))) {
+        if (is_array($review) && isset($review['expires']) && is_int($review['expires']) && $review['expires'] > 0 && $review['expires'] <= time()) {
+            delete_option($option);
+        }
+        wp_die(esc_html__('This review link is invalid or has expired.', 'community-calendar-study-rooms'), '', array('response' => 403));
+    }
+
+    global $wpdb;
+    $request = $wpdb->get_row($wpdb->prepare(
+        "SELECT b.booking_date, b.starts_at, b.ends_at, r.name AS room_name FROM " . calsys_table('bookings') . " b
+        INNER JOIN " . calsys_table('rooms') . " r ON r.id = b.room_id WHERE b.id = %d AND b.status = 'pending'",
+        $review['booking_id']
+    ));
+    if (!$request) {
+        if ($wpdb->last_error) {
+            error_log('CommonCalendar: unable to load a room request for email review: ' . $wpdb->last_error);
+            wp_die(esc_html__('The room request could not be loaded. Please contact the site administrator.', 'community-calendar-study-rooms'), '', array('response' => 500));
+        }
+        wp_die(esc_html__('This room request is no longer awaiting a decision.', 'community-calendar-study-rooms'), '', array('response' => 410));
+    }
+    if ($method === 'POST') {
+        $raw_comment = $input['decision_comment'] ?? '';
+        if (!is_string($raw_comment)) {
+            wp_die(esc_html__('The comment is invalid.', 'community-calendar-study-rooms'), '', array('response' => 400));
+        }
+        $comment = sanitize_textarea_field(wp_unslash($raw_comment));
+        if (strlen($comment) > 16000) {
+            wp_die(esc_html__('The comment is too long.', 'community-calendar-study-rooms'), '', array('response' => 400));
+        }
+        $result = calsys_apply_booking_decision($review['booking_id'], $decision, $comment);
+        if (in_array($result, array('approved', 'denied', 'room_status_email_failed'), true)) {
+            delete_option($option);
+        }
+        if ($result === 'conflict') {
+            wp_die(esc_html__('This request conflicts with another booking and cannot be approved. Please review it in WordPress.', 'community-calendar-study-rooms'), '', array('response' => 409));
+        }
+        if ($result === 'room_status_email_failed') {
+            wp_die(esc_html__('The decision was saved, but the requester email failed. Please contact the site administrator.', 'community-calendar-study-rooms'), '', array('response' => 500));
+        }
+        if ($result !== 'approved' && $result !== 'denied') {
+            wp_die(esc_html__('The decision could not be saved. It may have already been handled; please check WordPress.', 'community-calendar-study-rooms'), '', array('response' => 409));
+        }
+        wp_die(esc_html($result === 'approved'
+            ? __('The room request was approved.', 'community-calendar-study-rooms')
+            : __('The room request was denied.', 'community-calendar-study-rooms')), '', array('response' => 200));
+    }
+
+    $title = $decision === 'approve' ? __('Approve room request', 'community-calendar-study-rooms') : __('Deny room request', 'community-calendar-study-rooms');
+    $date = mysql2date(get_option('date_format'), $request->booking_date);
+    $start = mysql2date('g:i A', $request->booking_date . ' ' . $request->starts_at);
+    $end = mysql2date('g:i A', $request->booking_date . ' ' . $request->ends_at);
+    $html = '<h1>' . esc_html($title) . '</h1>'
+        . '<p>' . esc_html($request->room_name) . '<br>' . esc_html($date) . '<br>' . esc_html($start . ' - ' . $end) . '</p>'
+        . '<p>' . esc_html__('Opening this page has not changed the request. Confirm your decision below.', 'community-calendar-study-rooms') . '</p>'
+        . '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '">'
+        . '<input type="hidden" name="action" value="calsys_room_email_review">'
+        . '<input type="hidden" name="token" value="' . esc_attr($token) . '">'
+        . ($link_booking_id !== null ? '<input type="hidden" name="booking_id" value="' . esc_attr($link_booking_id) . '">' : '')
+        . '<input type="hidden" name="decision" value="' . esc_attr($decision) . '">'
+        . '<p><label for="calsys-review-comment">' . esc_html__('Comment to requester (optional)', 'community-calendar-study-rooms') . '</label><br>'
+        . '<textarea id="calsys-review-comment" name="decision_comment" rows="3" maxlength="4000" style="width:100%;box-sizing:border-box;"></textarea></p>'
+        . '<p><button class="button button-large" type="submit">' . esc_html($decision === 'approve' ? __('Confirm approval', 'community-calendar-study-rooms') : __('Confirm denial', 'community-calendar-study-rooms')) . '</button></p></form>';
+    wp_die($html, esc_html($title), array('response' => 200));
+}
+add_action('admin_post_calsys_room_email_review', 'calsys_room_email_review');
+add_action('admin_post_nopriv_calsys_room_email_review', 'calsys_room_email_review');
 
 /** Deletes an existing room booking submitted from a staff calendar dialog. */
 function calsys_front_delete_room_booking() {
@@ -421,6 +632,7 @@ function calsys_front_delete_room_booking() {
         $wpdb->query('ROLLBACK');
         calsys_frontend_redirect('invalid_room_request');
     }
+    calsys_clear_room_email_review($booking_id);
     calsys_frontend_redirect(calsys_notify_room_status($booking, 'cancelled', $comment) ? 'room_booking_deleted' : 'room_cancel_email_failed');
 }
 add_action('admin_post_calsys_front_delete_room_booking', 'calsys_front_delete_room_booking');

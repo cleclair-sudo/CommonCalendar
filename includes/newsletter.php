@@ -28,7 +28,7 @@ function calsys_newsletter_events($start, $end) {
         $start->format('Y-m-d H:i:s')
     ));
     if ($wpdb->last_error || !is_array($events)) {
-        error_log('CommonsCal: unable to load newsletter events: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load newsletter events: ' . $wpdb->last_error);
         return new WP_Error('newsletter_events', __('The newsletter events could not be loaded. Please check the site error log.', 'community-calendar-study-rooms'));
     }
     return $events;
@@ -38,19 +38,19 @@ function calsys_newsletter_events($start, $end) {
 function calsys_newsletter_image($attachment_id) {
     $path = get_attached_file($attachment_id);
     if (!wp_attachment_is_image($attachment_id) || !is_string($path) || !is_readable($path)) {
-        error_log('CommonsCal: newsletter image is unavailable for attachment ' . $attachment_id);
+        error_log('CommonCalendar: newsletter image is unavailable for attachment ' . $attachment_id);
         return new WP_Error('newsletter_image', __('A newsletter image could not be loaded. Check the site logo and event images in the Media Library.', 'community-calendar-study-rooms'));
     }
     $editor = wp_get_image_editor($path);
     if (is_wp_error($editor)) {
-        error_log('CommonsCal: unable to open newsletter image ' . $attachment_id . ': ' . $editor->get_error_message());
+        error_log('CommonCalendar: unable to open newsletter image ' . $attachment_id . ': ' . $editor->get_error_message());
         return new WP_Error('newsletter_image', __('A newsletter image could not be processed. Check the site error log.', 'community-calendar-study-rooms'));
     }
     $size = $editor->get_size();
     if ($size['width'] > 600 || $size['height'] > 600) {
         $resized = $editor->resize(600, 600, false);
         if (is_wp_error($resized)) {
-            error_log('CommonsCal: unable to resize newsletter image ' . $attachment_id . ': ' . $resized->get_error_message());
+            error_log('CommonCalendar: unable to resize newsletter image ' . $attachment_id . ': ' . $resized->get_error_message());
             return new WP_Error('newsletter_image', __('A newsletter image could not be processed. Check the site error log.', 'community-calendar-study-rooms'));
         }
     }
@@ -59,12 +59,12 @@ function calsys_newsletter_image($attachment_id) {
     }
     $temp = wp_tempnam('calsys-newsletter');
     if (!$temp || !is_file($temp)) {
-        error_log('CommonsCal: unable to create a temporary newsletter image file.');
+        error_log('CommonCalendar: unable to create a temporary newsletter image file.');
         return new WP_Error('newsletter_image', __('A temporary newsletter image could not be created. Check the site error log.', 'community-calendar-study-rooms'));
     }
     wp_delete_file($temp);
     if (file_exists($temp) || !@mkdir($temp, 0700)) {
-        error_log('CommonsCal: unable to create a private newsletter image directory.');
+        error_log('CommonCalendar: unable to create a private newsletter image directory.');
         return new WP_Error('newsletter_image', __('A temporary newsletter image could not be created. Check the site error log.', 'community-calendar-study-rooms'));
     }
     $png = $temp . DIRECTORY_SEPARATOR . 'image.png';
@@ -79,12 +79,12 @@ function calsys_newsletter_image($attachment_id) {
         if (is_wp_error($saved) || !is_array($saved) || empty($saved['path']) ||
             !is_readable($png) || realpath($saved['path']) !== realpath($png)) {
             $detail = is_wp_error($saved) ? $saved->get_error_message() : 'Image file was not saved.';
-            error_log('CommonsCal: unable to convert newsletter image ' . $attachment_id . ': ' . $detail);
+            error_log('CommonCalendar: unable to convert newsletter image ' . $attachment_id . ': ' . $detail);
             return new WP_Error('newsletter_image', __('A newsletter image could not be processed. Check the site error log.', 'community-calendar-study-rooms'));
         }
         $data = file_get_contents($png);
         if ($data === false) {
-            error_log('CommonsCal: unable to read converted newsletter image ' . $attachment_id);
+            error_log('CommonCalendar: unable to read converted newsletter image ' . $attachment_id);
             return new WP_Error('newsletter_image', __('A newsletter image could not be read. Check the site error log.', 'community-calendar-study-rooms'));
         }
         return 'data:image/png;base64,' . base64_encode($data);
@@ -93,12 +93,12 @@ function calsys_newsletter_image($attachment_id) {
             if (file_exists($file)) {
                 wp_delete_file($file);
                 if (file_exists($file)) {
-                    error_log('CommonsCal: unable to remove temporary newsletter image: ' . $file);
+                    error_log('CommonCalendar: unable to remove temporary newsletter image: ' . $file);
                 }
             }
         }
         if (!@rmdir($temp)) {
-            error_log('CommonsCal: unable to remove temporary newsletter directory: ' . $temp);
+            error_log('CommonCalendar: unable to remove temporary newsletter directory: ' . $temp);
         }
     }
 }
@@ -152,14 +152,14 @@ function calsys_newsletter_html($start, $events, $images, $logo_id) {
 function calsys_newsletter_pdf($start, $end) {
     foreach (array('dom', 'mbstring', 'gd') as $extension) {
         if (!extension_loaded($extension)) {
-            error_log('CommonsCal: newsletter PDF requires PHP extension ' . $extension);
+            error_log('CommonCalendar: newsletter PDF requires PHP extension ' . $extension);
             return new WP_Error('newsletter_extension', __('PDF generation requires the PHP DOM, mbstring, and GD extensions. Please contact the site administrator.', 'community-calendar-study-rooms'));
         }
     }
     $autoload = dirname(CALSYS_PLUGIN_FILE) . '/vendor/autoload.php';
     if (!is_readable($autoload)) {
-        error_log('CommonsCal: newsletter PDF dependencies are missing.');
-        return new WP_Error('newsletter_dependency', __('The PDF library is missing. Reinstall the complete CommonsCal ZIP.', 'community-calendar-study-rooms'));
+        error_log('CommonCalendar: newsletter PDF dependencies are missing.');
+        return new WP_Error('newsletter_dependency', __('The PDF library is missing. Reinstall the complete CommonCalendar ZIP.', 'community-calendar-study-rooms'));
     }
     $events = calsys_newsletter_events($start, $end);
     if (is_wp_error($events)) {
@@ -196,7 +196,7 @@ function calsys_newsletter_pdf($start, $end) {
         }
         return $output;
     } catch (Throwable $error) {
-        error_log('CommonsCal: unable to generate newsletter PDF: ' . $error->getMessage());
+        error_log('CommonCalendar: unable to generate newsletter PDF: ' . $error->getMessage());
         return new WP_Error('newsletter_pdf', __('The newsletter PDF could not be generated. Please check the site error log.', 'community-calendar-study-rooms'));
     }
 }

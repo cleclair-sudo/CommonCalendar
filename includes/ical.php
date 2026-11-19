@@ -39,11 +39,11 @@ function calsys_serve_event_ical() {
         " WHERE status = 'published' ORDER BY starts_at ASC, id ASC"
     );
     if ($wpdb->last_error || !is_array($events)) {
-        error_log('CommonsCal: unable to load calendar subscription: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load calendar subscription: ' . $wpdb->last_error);
         status_header(500);
         wp_die(esc_html__('The event calendar could not be loaded.', 'community-calendar-study-rooms'));
     }
-    $lines = array('BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CommonsCal//Events//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:' . calsys_ical_text(get_bloginfo('name') . ' - Events'));
+    $lines = array('BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//CommonCalendar//Events//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:' . calsys_ical_text(get_bloginfo('name') . ' - Events'));
     $site_id = hash('sha256', home_url('/'));
     $utc = new DateTimeZone('UTC');
     foreach ($events as $event) {
@@ -51,7 +51,7 @@ function calsys_serve_event_ical() {
         $end = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $event->ends_at, wp_timezone());
         $created = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $event->created_at, wp_timezone());
         if (!$start || !$end || !$created) {
-            error_log('CommonsCal: invalid event date in calendar subscription for event ' . (int) $event->id);
+            error_log('CommonCalendar: invalid event date in calendar subscription for event ' . (int) $event->id);
             status_header(500);
             wp_die(esc_html__('The event calendar could not be loaded.', 'community-calendar-study-rooms'));
         }
@@ -73,7 +73,7 @@ function calsys_serve_event_ical() {
     foreach ($lines as $line) {
         $folded = calsys_ical_line($line);
         if ($folded === false) {
-            error_log('CommonsCal: invalid text in event calendar subscription.');
+            error_log('CommonCalendar: invalid text in event calendar subscription.');
             status_header(500);
             wp_die(esc_html__('The event calendar could not be loaded.', 'community-calendar-study-rooms'));
         }

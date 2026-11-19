@@ -4,13 +4,13 @@ if (!defined('ABSPATH')) {
 }
 
 function calsys_privacy_exporters($exporters) {
-    $exporters['commonscal'] = array('exporter_friendly_name' => __('CommonsCal bookings and registrations', 'community-calendar-study-rooms'), 'callback' => 'calsys_export_personal_data');
+    $exporters['commonscal'] = array('exporter_friendly_name' => __('CommonCalendar bookings and registrations', 'community-calendar-study-rooms'), 'callback' => 'calsys_export_personal_data');
     return $exporters;
 }
 add_filter('wp_privacy_personal_data_exporters', 'calsys_privacy_exporters');
 
 function calsys_privacy_erasers($erasers) {
-    $erasers['commonscal'] = array('eraser_friendly_name' => __('CommonsCal bookings and registrations', 'community-calendar-study-rooms'), 'callback' => 'calsys_erase_personal_data');
+    $erasers['commonscal'] = array('eraser_friendly_name' => __('CommonCalendar bookings and registrations', 'community-calendar-study-rooms'), 'callback' => 'calsys_erase_personal_data');
     return $erasers;
 }
 add_filter('wp_privacy_personal_data_erasers', 'calsys_privacy_erasers');
@@ -42,8 +42,8 @@ function calsys_export_personal_data($email, $page = 1) {
     foreach ($tables as $kind => $query) {
         $rows = $wpdb->get_results($query);
         if ($wpdb->last_error || !is_array($rows)) {
-            error_log('CommonsCal: personal data export failed: ' . $wpdb->last_error);
-            return new WP_Error('calsys_export_failed', __('CommonsCal personal data could not be exported. Check the site error log.', 'community-calendar-study-rooms'));
+            error_log('CommonCalendar: personal data export failed: ' . $wpdb->last_error);
+            return new WP_Error('calsys_export_failed', __('CommonCalendar personal data could not be exported. Check the site error log.', 'community-calendar-study-rooms'));
         }
         if (count($rows) === $limit) {
             $done = false;
@@ -96,8 +96,8 @@ function calsys_erase_personal_data($email, $page = 1) {
     foreach ($queries as $query) {
         $result = $wpdb->query($query);
         if ($result === false) {
-            error_log('CommonsCal: personal data erasure failed: ' . $wpdb->last_error);
-            return array('items_removed' => $removed, 'items_retained' => true, 'messages' => array(__('CommonsCal data could not be fully erased. Check the site error log.', 'community-calendar-study-rooms')), 'done' => true);
+            error_log('CommonCalendar: personal data erasure failed: ' . $wpdb->last_error);
+            return array('items_removed' => $removed, 'items_retained' => true, 'messages' => array(__('CommonCalendar data could not be fully erased. Check the site error log.', 'community-calendar-study-rooms')), 'done' => true);
         }
         $removed = $removed || $result > 0;
         if ($result === 100) {
@@ -131,7 +131,7 @@ function calsys_privacy_cleanup() {
         list($kind, $select) = $source;
         $ids = $wpdb->get_col($select);
         if ($wpdb->last_error || !is_array($ids)) {
-            error_log('CommonsCal: unable to select expired personal data: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to select expired personal data: ' . $wpdb->last_error);
             continue;
         }
         if (!$ids) {
@@ -149,7 +149,7 @@ function calsys_privacy_cleanup() {
             $ids[] = $cutoff->format('Y-m-d H:i:s');
         }
         if ($wpdb->query($wpdb->prepare($sql, $ids)) === false) {
-            error_log('CommonsCal: unable to clean expired personal data: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to clean expired personal data: ' . $wpdb->last_error);
         }
     }
 }
@@ -157,7 +157,7 @@ add_action('calsys_privacy_cleanup', 'calsys_privacy_cleanup');
 
 function calsys_privacy_policy_content() {
     if (function_exists('wp_add_privacy_policy_content')) {
-        wp_add_privacy_policy_content('CommonsCal', '<p>' . esc_html__('CommonsCal stores room-request names, email addresses and reasons, as well as event registration and waitlist contact details and form responses. Staff use these details to manage bookings and events. Site administrators can export or erase records through WordPress privacy tools and can configure automatic anonymization of older records.', 'community-calendar-study-rooms') . '</p>');
+        wp_add_privacy_policy_content('CommonCalendar', '<p>' . esc_html__('CommonCalendar stores room-request names, email addresses and reasons, as well as event registration and waitlist contact details and form responses. Staff use these details to manage bookings and events. Site administrators can export or erase records through WordPress privacy tools and can configure automatic anonymization of older records.', 'community-calendar-study-rooms') . '</p>');
     }
 }
 add_action('admin_init', 'calsys_privacy_policy_content');

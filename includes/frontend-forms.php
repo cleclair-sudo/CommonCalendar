@@ -75,7 +75,7 @@ function calsys_event_series_field($selected_id = 0) {
     global $wpdb;
     $series = $wpdb->get_results("SELECT id, name FROM " . calsys_table('series') . " ORDER BY name ASC, id ASC");
     if (!is_array($series)) {
-        error_log('CommonsCal: unable to load event series: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to load event series: ' . $wpdb->last_error);
         wp_die(esc_html__('Event series could not be loaded. Please check the site error log.', 'community-calendar-study-rooms'));
     }
     ob_start();

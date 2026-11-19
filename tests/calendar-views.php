@@ -25,7 +25,7 @@ function calsys_equipment_for_source() { return array(); }
 function current_user_can($capability) { return $GLOBALS['staff']; }
 function is_user_logged_in() { return $GLOBALS['logged_in']; }
 function calsys_table($name) { return 'wp_calsys_' . $name; }
-function calsys_get_settings() { return array('privacy' => array('hide_guest_room_bookings' => $GLOBALS['hide_guest_room_bookings'], 'show_room_names' => $GLOBALS['show_room_names'], 'show_room_status' => true), 'booking_rules' => $GLOBALS['booking_rules'], 'calendar_display' => array('initial_month' => 'current'), 'event_registration' => array('confirmation_message' => '', 'disabled_message' => '', 'closed_message' => '', 'full_message' => '')); }
+function calsys_get_settings() { return array('privacy' => array('hide_guest_room_bookings' => $GLOBALS['hide_guest_room_bookings'], 'show_room_names' => $GLOBALS['show_room_names'], 'show_room_status' => true), 'booking_rules' => $GLOBALS['booking_rules'], 'calendar_display' => array('initial_month' => 'current', 'show_filter_heading' => $GLOBALS['show_filter_heading'] ?? 0), 'event_registration' => array('confirmation_message' => '', 'disabled_message' => '', 'closed_message' => '', 'full_message' => '')); }
 function get_option($name) { return $name === 'time_format' ? 'H:i' : 'Y-m-d'; }
 function wp_date($format, $timestamp, $timezone) { return (new DateTimeImmutable('@' . $timestamp))->setTimezone($timezone)->format($format); }
 function remove_query_arg($args) {
@@ -41,7 +41,7 @@ function add_query_arg($args, $value, $url = null) {
     return strtok($url, '?') . ($query ? '?' . http_build_query($query) : '');
 }
 function wp_parse_url($url, $component) { return parse_url($url, $component); }
-function calsys_event_categories() { return array(); }
+function calsys_event_categories() { return $GLOBALS['event_categories'] ?? array(); }
 function calsys_staff_types() { return array('meeting' => 'Meeting', 'sick_time' => 'Sick time', 'time_off' => 'Time off'); }
 function calsys_disable_calendar_page_cache() {}
 function get_permalink() { return 'https://example.org/calendar'; }
@@ -198,6 +198,9 @@ foreach (array('meeting' => true, 'sick_time' => false, 'time_off' => true) as $
     expect((strpos($input[0], 'checked') !== false) === $is_checked, 'Staff type checkboxes must reflect valid selections');
 }
 expect(strpos($html, 'data-calsys-auto-submit') !== false && strpos($html, 'Apply filters') !== false, 'Staff filters must support automatic and manual submission');
+preg_match('/<form class="calsys-category-filter"[^>]*>(.*?)<\/form>/s', $html, $staff_filter);
+expect(!empty($staff_filter[1]) && strpos($staff_filter[1], '<nav class="calsys-calendar-navigation"') !== false &&
+    strpos($staff_filter[1], '&larr;') !== false && strpos($staff_filter[1], '&rarr;') !== false, 'Staff month arrows must be inside the filter toolbar');
 expect((bool) preg_match('/<div class="calsys-category-filter-actions">\s*<button type="submit">Apply filters<\/button>\s*<button type="button" data-calsys-print="calendar">Print calendar<\/button>/', $html) &&
     substr_count($html, 'data-calsys-print="calendar"') === 1, 'Staff print must appear beside apply without submitting the filter form');
 preg_match('/<a href="([^"]+)" aria-label="Previous period"/', $html, $previous);
@@ -225,15 +228,33 @@ expect(strpos(calsys_staff_calendar_shortcode(), 'could not be loaded') !== fals
 $wpdb->staff_query_fails = false;
 $staff = false;
 $logged_in = false;
+$event_categories = array('adult' => 'Adult');
 foreach (array(array(), array('calsys_recurring' => 'yes'), array('calsys_series' => 'yes'), array('calsys_recurring' => 'yes', 'calsys_series' => 'yes')) as $filters) {
     $_GET = $filters;
     $html = calsys_render_calendar('Calendar', array(), $month, 'events', 'month', $month, true);
+    expect((bool) preg_match('/<fieldset class="calsys-category-filter-options">\s*<legend class="screen-reader-text">Filter by category<\/legend>(.*?)<\/fieldset>/s', $html, $category_fieldset) &&
+        strpos($category_fieldset[1], 'name="calsys_category[]"') !== false &&
+        strpos($category_fieldset[1], 'name="calsys_recurring"') !== false &&
+        strpos($category_fieldset[1], 'name="calsys_series"') !== false &&
+        strpos($html, 'Filter by event type') === false, 'Event type choices must appear with category filters');
     foreach (array('calsys_recurring', 'calsys_series') as $filter) {
         expect((bool) preg_match('/<input type="checkbox" name="' . $filter . '" value="yes"[^>]*>/', $html, $input), "$filter must be a checkbox");
         expect((strpos($input[0], 'checked') !== false) === isset($filters[$filter]), "$filter must reflect its selected state");
         expect(strpos($html, '<select name="' . $filter . '"') === false, "$filter must not be a dropdown");
     }
 }
+unset($event_categories);
+preg_match('/<form class="calsys-category-filter"[^>]*>(.*?)<\/form>/s', $html, $event_filter);
+expect(!empty($event_filter[1]) && strpos($event_filter[1], '<nav class="calsys-calendar-navigation"') !== false &&
+    strpos($event_filter[1], '&larr;') !== false && strpos($event_filter[1], '&rarr;') !== false, 'Event month arrows must be inside the filter toolbar');
+expect((bool) preg_match('/<div class="calsys-filter-navigation">\s*<nav class="calsys-calendar-navigation".*?<\/nav>\s*<nav class="calsys-view-switcher".*?<\/nav>\s*<\/div>/s', $event_filter[1]),
+    'Period navigation must be grouped directly above the view switcher');
+expect((bool) preg_match('/<nav class="calsys-view-switcher" aria-label="Calendar view">\s*<div class="calsys-view-options">/s', $event_filter[1]),
+    'View switcher must have an accessible label without a visible heading');
+$show_filter_heading = 1;
+$html = calsys_render_calendar('Calendar', array(), $month, 'combined', 'month', $month, true);
+expect(strpos($html, '<legend>Filter by category</legend>') !== false, 'The category filter heading must be visible when enabled');
+unset($show_filter_heading);
 $_GET = array();
 $entries = calsys_room_calendar_entries($month, $month->modify('+1 month'));
 expect($entries[0]->room_color === '#123456' && $entries[0]->title === 'Blue room', 'Visible rooms must retain their individual color');

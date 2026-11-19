@@ -154,7 +154,7 @@ function calsys_activate() {
         $table = calsys_table($table_name);
         $found = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
         if ($found !== $table || $wpdb->last_error) {
-            error_log('CommonsCal: unable to create plugin tables: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to create plugin tables: ' . $wpdb->last_error);
             return;
         }
     }
@@ -162,7 +162,7 @@ function calsys_activate() {
     if ($previous_db_version < 5) {
         $enabled_existing_events = $wpdb->query("UPDATE " . calsys_table('events') . " SET registration_enabled = 1");
         if ($enabled_existing_events === false) {
-            error_log('CommonsCal: unable to preserve event registration settings during database upgrade: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to preserve event registration settings during database upgrade: ' . $wpdb->last_error);
             return;
         }
     }
@@ -174,23 +174,23 @@ function calsys_activate() {
             $show_counts
         ));
         if ($migrated === false) {
-            error_log('CommonsCal: unable to preserve event count visibility during database upgrade: ' . $wpdb->last_error);
+            error_log('CommonCalendar: unable to preserve event count visibility during database upgrade: ' . $wpdb->last_error);
             return;
         }
     }
 
     if ($previous_db_version < 10 && !$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table('rooms') . " LIKE 'color'")) {
-        error_log('CommonsCal: unable to add room colors: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to add room colors: ' . $wpdb->last_error);
         return;
     }
     if ($previous_db_version < 12 && !$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table('events') . " LIKE 'staff_initials'")) {
-        error_log('CommonsCal: unable to add event staff initials: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to add event staff initials: ' . $wpdb->last_error);
         return;
     }
     if ($previous_db_version < 13) {
         foreach (array('series_id', 'register_all_recurrences') as $column) {
             if (!$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table('events') . " LIKE '$column'")) {
-                error_log('CommonsCal: unable to add event series fields: ' . $wpdb->last_error);
+                error_log('CommonCalendar: unable to add event series fields: ' . $wpdb->last_error);
                 return;
             }
         }
@@ -198,13 +198,13 @@ function calsys_activate() {
     if ($previous_db_version < 14) {
         foreach (array('bookings', 'staff_calendar') as $table_name) {
             if (!$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table($table_name) . " LIKE 'staff_initials'")) {
-                error_log('CommonsCal: unable to add staff initials to ' . $table_name . ': ' . $wpdb->last_error);
+                error_log('CommonCalendar: unable to add staff initials to ' . $table_name . ': ' . $wpdb->last_error);
                 return;
             }
         }
     }
     if ($previous_db_version < 15 && !$wpdb->get_var("SHOW COLUMNS FROM " . calsys_table('staff_calendar') . " LIKE 'notes'")) {
-        error_log('CommonsCal: unable to add staff calendar notes: ' . $wpdb->last_error);
+        error_log('CommonCalendar: unable to add staff calendar notes: ' . $wpdb->last_error);
         return;
     }
 
@@ -328,9 +328,9 @@ function calsys_schedule_reminder_cron() {
     }
     $scheduled = wp_schedule_event(time() + 300, 'hourly', 'calsys_send_due_event_reminders', array(), true);
     if (is_wp_error($scheduled)) {
-        error_log('CommonsCal: unable to schedule event reminders: ' . $scheduled->get_error_message());
+        error_log('CommonCalendar: unable to schedule event reminders: ' . $scheduled->get_error_message());
     } elseif (!$scheduled) {
-        error_log('CommonsCal: unable to schedule event reminders.');
+        error_log('CommonCalendar: unable to schedule event reminders.');
     }
 }
 
@@ -541,6 +541,34 @@ function calsys_decode_registration_recipients($raw_recipients) {
     return $sanitized === false ? array() : $sanitized;
 }
 
+/** Validates room notification addresses without silently changing invalid input. */
+function calsys_sanitize_room_request_recipients($raw_recipients) {
+    if (!is_string($raw_recipients) || strlen($raw_recipients) > 2000) {
+        return false;
+    }
+    foreach (preg_split('/[\r\n,;]+/', $raw_recipients) as $raw_email) {
+        $email = trim($raw_email);
+        if ($email !== '' && !is_email($email)) {
+            return false;
+        }
+    }
+    return calsys_sanitize_registration_recipients($raw_recipients);
+}
+
+/** Validates the duration in days; zero means no expiration. */
+function calsys_validate_room_email_review_days($value) {
+    if ((!is_string($value) && !is_int($value)) || !ctype_digit((string) $value)) {
+        return false;
+    }
+    $value = ltrim((string) $value, '0');
+    $value = $value === '' ? '0' : $value;
+    $maximum = (string) intdiv(PHP_INT_MAX - time(), DAY_IN_SECONDS);
+    if (strlen($value) > strlen($maximum) || (strlen($value) === strlen($maximum) && strcmp($value, $maximum) > 0)) {
+        return false;
+    }
+    return (int) $value;
+}
+
 /** Renders one registration-field row in the event editor. */
 function calsys_registration_field_editor_row($index, $field = array(), $name_prefix = 'registration_fields') {
     $types = calsys_registration_field_types();
@@ -618,6 +646,7 @@ function calsys_default_settings() {
             'initial_month' => 'current',
             'show_registration_counts' => 1,
             'show_category_labels' => 1,
+            'show_filter_heading' => 0,
         ),
         'room_requests' => array(
             'submitted_message' => __('We have received your room request. We will be in touch by email, please remember to check your junk folder.', 'community-calendar-study-rooms'),
@@ -626,6 +655,9 @@ function calsys_default_settings() {
         ),
         'notifications' => array(
             'staff_email' => sanitize_email(get_option('admin_email')),
+            'room_request_recipients' => array(),
+            'room_email_review_enabled' => 1,
+            'room_email_review_days' => 7,
             'notify_staff_room_requests' => 0,
             'email_room_requester' => 0,
             'email_event_registrant' => 1,
@@ -747,7 +779,7 @@ function calsys_get_settings() {
         $rules['holiday_hours'] ?? array()
     );
     if ($schedule === false) {
-        error_log('CommonsCal: invalid saved room opening hours; public bookings are closed until corrected.');
+        error_log('CommonCalendar: invalid saved room opening hours; public bookings are closed until corrected.');
         $schedule = array('weekly' => array_fill(0, 7, array('mode' => 'closed', 'open' => '', 'close' => '')), 'holidays' => array());
     }
     $settings['booking_rules'] = array(
@@ -800,6 +832,7 @@ function calsys_get_settings() {
             ? $display['initial_month'] : $defaults['calendar_display']['initial_month'],
         'show_registration_counts' => isset($display['show_registration_counts']) ? (int) (bool) $display['show_registration_counts'] : $defaults['calendar_display']['show_registration_counts'],
         'show_category_labels' => isset($display['show_category_labels']) ? (int) (bool) $display['show_category_labels'] : $defaults['calendar_display']['show_category_labels'],
+        'show_filter_heading' => isset($display['show_filter_heading']) ? (int) (bool) $display['show_filter_heading'] : $defaults['calendar_display']['show_filter_heading'],
     );
 
     $room_requests = is_array($saved['room_requests'] ?? null) ? $saved['room_requests'] : array();
@@ -812,8 +845,30 @@ function calsys_get_settings() {
     $notifications = is_array($saved['notifications'] ?? null) ? $saved['notifications'] : array();
     $raw_notification_email = $notifications['staff_email'] ?? $defaults['notifications']['staff_email'];
     $notification_email = is_string($raw_notification_email) ? sanitize_email($raw_notification_email) : '';
+    $room_recipients = array_key_exists('room_request_recipients', $notifications) ? $notifications['room_request_recipients'] : array();
+    if (!is_array($room_recipients) || count(array_filter($room_recipients, 'is_string')) !== count($room_recipients)) {
+        $room_recipients = false;
+    } else {
+        $room_recipients = calsys_sanitize_room_request_recipients(implode("\n", $room_recipients));
+    }
+    if ($room_recipients === false) {
+        error_log('CommonCalendar: invalid saved room request notification addresses.');
+    }
+    $review_enabled = array_key_exists('room_email_review_enabled', $notifications) ? $notifications['room_email_review_enabled'] : 1;
+    if (!in_array($review_enabled, array(0, 1, '0', '1', false, true), true)) {
+        error_log('CommonCalendar: invalid saved room email review setting; links are disabled.');
+        $review_enabled = 0;
+    }
+    $review_days = array_key_exists('room_email_review_days', $notifications)
+        ? calsys_validate_room_email_review_days($notifications['room_email_review_days']) : 7;
+    if ($review_days === false) {
+        error_log('CommonCalendar: invalid saved room email review duration.');
+    }
     $settings['notifications'] = array(
         'staff_email' => is_email($notification_email) ? $notification_email : $defaults['notifications']['staff_email'],
+        'room_request_recipients' => $room_recipients,
+        'room_email_review_enabled' => (int) (bool) $review_enabled,
+        'room_email_review_days' => $review_days,
         'notify_staff_room_requests' => isset($notifications['notify_staff_room_requests']) ? (int) (bool) $notifications['notify_staff_room_requests'] : $defaults['notifications']['notify_staff_room_requests'],
         'email_room_requester' => isset($notifications['email_room_requester']) ? (int) (bool) $notifications['email_room_requester'] : $defaults['notifications']['email_room_requester'],
         'email_event_registrant' => isset($notifications['email_event_registrant']) ? (int) (bool) $notifications['email_event_registrant'] : $defaults['notifications']['email_event_registrant'],
@@ -825,7 +880,7 @@ function calsys_get_settings() {
         if ($email_settings !== false) {
             $settings['email_settings'] = $email_settings;
         } else {
-            error_log('CommonsCal: invalid saved email settings; using default email settings.');
+            error_log('CommonCalendar: invalid saved email settings; using default email settings.');
         }
     }
 
@@ -939,7 +994,7 @@ function calsys_validate_staff_initials($raw_initials) {
 }
 
 /** Sends a plugin notification using its configured template and sender. */
-function calsys_send_email($recipient, $subject, $message, $type = '', $context = array()) {
+function calsys_send_email($recipient, $subject, $message, $type = '', $context = array(), $room_review = array()) {
     $settings = calsys_get_settings()['email_settings'];
     $is_cancellation = in_array($type, array('event_cancelled', 'room_cancelled'), true);
     $comment = $is_cancellation && isset($context['comment']) ? $context['comment'] : '';
@@ -967,22 +1022,61 @@ function calsys_send_email($recipient, $subject, $message, $type = '', $context 
     if ($settings['from_email'] !== '') {
         $headers[] = 'From: ' . $settings['from_email'];
     }
+    $logo = '';
     if ($settings['logo_placement'] !== 'none') {
         $logo_id = get_theme_mod('custom_logo');
         $logo_url = $logo_id ? wp_get_attachment_image_url($logo_id, 'medium') : false;
         if ($logo_id && !$logo_url) {
-            error_log('CommonsCal: the configured site logo could not be loaded for email.');
+            error_log('CommonCalendar: the configured site logo could not be loaded for email.');
         }
         if ($logo_url) {
-            $logo = '<p><img src="' . esc_url($logo_url) . '" alt="" style="max-width:200px;height:auto;"></p>';
-            $message = nl2br(esc_html($message));
-            $message = $settings['logo_placement'] === 'top' ? $logo . $message : $message . $logo;
-            $headers[] = 'Content-Type: text/html; charset=UTF-8';
+            $logo = '<div style="padding:0 0 24px;"><img src="' . esc_url($logo_url) . '" alt="" style="display:block;max-width:200px;height:auto;border:0;"></div>';
         }
     }
-    $sent = wp_mail($recipient, $subject, $message, $headers);
+    $lines = preg_split('/\r\n|\r|\n/', $message);
+    $rendered_lines = array();
+    foreach ($lines as $line) {
+        if (preg_match('/^([^:\r\n]{1,60}):([ \t]+)(\S.*)$/u', $line, $matches)) {
+            $rendered_lines[] = '<span style="display:inline-block;box-sizing:border-box;width:100%;background-color:#f3f6f9;border:1px solid #e2e8ef;border-radius:6px;padding:8px 12px;margin:2px 0;">'
+                . '<strong style="color:#334b5f;">' . esc_html($matches[1]) . ':</strong>' . esc_html($matches[2] . $matches[3]) . '</span>';
+        } else {
+            $rendered_lines[] = esc_html($line);
+        }
+    }
+    $body = implode("<br>\n", $rendered_lines);
+    $review_html = '';
+    if (isset($room_review['approve'], $room_review['deny'])) {
+        $review_expiry = $room_review['days'] === 0
+            ? __('These links do not expire.', 'community-calendar-study-rooms')
+            : sprintf(
+                /* translators: %s: number of days the links remain valid */
+                _n('These links expire after %s day.', 'These links expire after %s days.', $room_review['days'], 'community-calendar-study-rooms'),
+                (string) $room_review['days']
+            );
+        $review_html = '<div style="padding-top:24px;">'
+            . '<a href="' . esc_url($room_review['approve']) . '" style="display:inline-block;background-color:#17674b;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;margin:0 8px 8px 0;">' . esc_html__('Approve request', 'community-calendar-study-rooms') . '</a>'
+            . '<a href="' . esc_url($room_review['deny']) . '" style="display:inline-block;background-color:#923b3b;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:6px;margin:0 8px 8px 0;">' . esc_html__('Deny request', 'community-calendar-study-rooms') . '</a>'
+            . '<p style="font-size:13px;color:#526675;line-height:1.5;">' . esc_html($review_expiry . ' ' . __('Anyone with a link can review this request; a confirmation is required.', 'community-calendar-study-rooms')) . '</p></div>';
+    } elseif (!empty($room_review['unavailable'])) {
+        $review_html = '<p style="padding-top:24px;font-size:13px;color:#923b3b;">'
+            . esc_html__('Email approval links could not be created. Please review this request in WordPress Room Approvals.', 'community-calendar-study-rooms') . '</p>';
+    }
+    $top_logo = $settings['logo_placement'] === 'top' ? $logo : '';
+    $bottom_logo = $settings['logo_placement'] === 'bottom' ? $logo : '';
+    $html = '<!DOCTYPE html><html><body style="margin:0;padding:0;background-color:#f2f5f7;">'
+        . '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#f2f5f7;"><tr><td align="center" style="padding:24px 12px;">'
+        . '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width:600px;background-color:#ffffff;border:1px solid #dfe6eb;border-radius:10px;">'
+        . '<tr><td style="padding:28px;font-family:Arial,Helvetica,sans-serif;color:#243746;">'
+        . $top_logo
+        . '<h1 style="margin:0 0 20px;font-size:22px;line-height:1.3;color:#193e50;">' . esc_html($subject) . '</h1>'
+        . '<div style="font-size:15px;line-height:1.6;overflow-wrap:break-word;">' . $body . '</div>'
+        . $review_html
+        . ($bottom_logo ? '<div style="padding-top:24px;">' . $bottom_logo . '</div>' : '')
+        . '</td></tr></table></td></tr></table></body></html>';
+    $headers[] = 'Content-Type: text/html; charset=UTF-8';
+    $sent = wp_mail($recipient, $subject, $html, $headers);
     if (!$sent) {
-        error_log('CommonsCal: email delivery failed.');
+        error_log('CommonCalendar: email delivery failed.');
     }
     return $sent;
 }

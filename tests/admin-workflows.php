@@ -52,6 +52,7 @@ function current_time($format) { return $format === 'Y-m-d' ? '2026-11-11' : '20
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function calsys_staff_types() { return array('other' => 'Other'); }
 function get_option($name) { return $name === 'date_format' ? 'Y-m-d' : 'H:i'; }
+function delete_option($name) { $GLOBALS['deleted_options'][] = $name; return true; }
 function mysql2date($format, $date) { return date($format, strtotime($date)); }
 function absint($value) { return abs((int) $value); }
 function sanitize_key($value) { return $value; }
@@ -79,7 +80,7 @@ $conflict = false;
 $wpdb = new TestDatabase();
 $menus = array();
 calsys_admin_menu();
-expect($main_menu === array('CommonsCal', 'CommonsCal', 'manage_calendar_system', 'calsys-home'), 'Main menu branding or compatibility changed');
+expect($main_menu === array('CommonCalendar', 'CommonCalendar', 'manage_calendar_system', 'calsys-home'), 'Main menu branding or compatibility changed');
 foreach (array('calsys-room-approvals', 'calsys-event-registrations') as $slug) {
     expect(isset($menus[$slug]) && $menus[$slug][0] === 'manage_calendar_system', "$slug menu is missing or unprotected");
 }
@@ -153,6 +154,8 @@ foreach (array('approve' => 'approved', 'deny' => 'denied') as $decision => $sta
     }
 }
 expect(count($sent_emails) === 2 && strpos($sent_emails[0][1], 'approved') !== false && strpos($sent_emails[1][1], 'declined') !== false, 'Decisions must notify the requester');
+expect(count(array_filter($deleted_options, function ($name) { return $name === 'calsys_room_review_booking_17'; })) === 2,
+    'Decisions in WordPress must remove the booking review token');
 expect(strpos($sent_emails[0][2], "Staff comment:\nPlease note:\nDetails") !== false && strpos($sent_emails[1][2], "Staff comment:\nPlease note:\nDetails") !== false, 'Decision comments must be sanitized and emailed');
 $_POST = array('booking_id' => '17', 'decision' => 'deny', 'decision_comment' => array('invalid'));
 try { calsys_booking_decision(); expect(false, 'Expected invalid comment'); } catch (TestRedirect $redirect) {

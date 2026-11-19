@@ -1,20 +1,119 @@
 # CommonCalendar
 
-A Wordpress plugin for library staff, study room and event management built by librarians for librarians. Originally developed by SMTI for McArthur Library. If you need any help setting this up or request a feature, reach out to Corie at cleclair@southernmainetech.org
+A WordPress plugin for library events, room reservations, and staff scheduling, built by librarians for librarians. Originally developed by SMTI for McArthur Library.
 
+Need help or have a feature request? Contact Corie at cleclair@southernmainetech.org.
 
-## Install
+## Quick install
 
-1. Copy the `community-calendar-study-rooms` folder into `wp-content/plugins/` (or upload the ZIP under **Plugins > Add New > Upload Plugin**).
-2. Activate **CommonCalendar**.
-3. Create WordPress user accounts for staff and give them the **Editor** role, or grant their role the `manage_calendar_system` capability. Administrators and Editors receive this capability on activation.
-4. Open **CommonCalendar > Home** in the WordPress dashboard for an overview of upcoming events, room requests, active rooms, and staff entries. The **Upcoming** section lists today's remaining and in-progress events, room bookings, and staff time. The Home page links to event management; event management is no longer a separate navigation tab. Staff can also manage events from the website calendar after signing in.
-5. Use **Room Approvals** to review pending requests and approve or deny them. Use **Event Registrations** to select an upcoming event and view its registrants and custom-field responses. Draft upcoming events are included; past events remain accessible through the event manager.
-6. Add equipment and quantities under **Settings > Equipment** before accepting equipment reservations. **Reports** provides date-filtered room, equipment, and event reports with separate CSV downloads.
+**Requirements:** WordPress 6.0 or later and PHP 7.4 or later. Newsletter PDF generation also requires the PHP DOM, mbstring, and GD extensions and the bundled Composer dependencies.
 
-The plugin creates its tables when activated. Deactivating it does not delete events, registrations, rooms, or bookings.
+1. Download the installable CommonCalendar ZIP, then in WordPress go to **Plugins > Add New > Upload Plugin**, upload it, and activate **CommonCalendar**. Alternatively, copy the `community-calendar-study-rooms` folder into `wp-content/plugins/` and activate it.
+2. Open **CommonCalendar > Settings** to add rooms, configure hours and booking rules, and choose your email notification settings.
+3. Give staff WordPress accounts with the Editor role, or grant their role the `manage_calendar_system` capability. Administrators and Editors receive the capability on activation.
+4. Add `[calendar_event_calendar]` to a WordPress page or shortcode block and publish it. See [Shortcodes](#shortcodes) for other displays.
+5. Use **CommonCalendar > Room Approvals** for pending room requests and **Event Registrations** to review event sign-ups. The **Home** dashboard links to event management.
 
-Under **Settings > Newsletter**, choose a month and download a PDF of published events overlapping that month. It includes event dates, times, descriptions, images, and the WordPress site logo (set under **Appearance > Customize > Site Identity** when supported by the theme). Drafts, registrations, and room bookings are excluded. If no site logo is set, the site name is shown. Images must be accessible locally to WordPress; an unavailable image is reported instead of silently omitted. PDF generation requires the PHP DOM, mbstring, and GD extensions and the bundled Composer dependencies.
+The plugin creates its database tables on activation. Deactivating it does not delete events, registrations, rooms, or bookings.
+
+## Features
+
+### Public calendars and website displays
+
+- **Unified calendar:** Show published events and public room bookings together, or use the event-only and room-focused shortcodes. Visitors can open event details and request a room directly from the calendar.
+- **Day, Week, and Month views:** Switch views and move between periods using the calendar toolbar. On narrow screens, days are stacked for easier reading and room requests.
+- **Filters:** Filter events by category, recurring events, or named series. Selecting both event types shows matches for either; leaving both unchecked shows all event types. Category and event-type filters can be combined; room bookings remain visible in combined calendars. The **Filter by category** heading is hidden by default and can be restored in **Settings > Calendar display**.
+- **Upcoming event cards:** Display the next three to five published events with images, dates, and a details button.
+- **Printing:** Print the selected calendar view or, in Month and Week views, a chronological list of published events for the selected period. The event list respects category filters and excludes room bookings. Printing opens a new window, so pop-ups must be allowed.
+- **Calendar subscriptions:** Subscribe to the published-event iCalendar feed in Google Calendar, Apple Calendar, or Outlook. The feed excludes room bookings, registrations, and staff entries; refresh timing is controlled by the calendar app, and subscribing does not register anyone for an event.
+- **Display settings:** Choose the week start, initial month, event category labels, category colors, room colors, and staff booking-type colors.
+- **Privacy-aware display:** Public room entries never reveal patron contact details. Hide room names, booking status, or all room bookings from logged-out visitors. When room names are hidden, public bookings use the default room color.
+- **Theme integration:** Calendars and forms are native WordPress shortcodes that can be placed in pages, posts, or shortcode blocks. Calendar pages send no-cache headers because staff controls depend on login status; clear page, host, or CDN caches after updating.
+
+### Events, recurrence, and series
+
+- **Event management:** Staff can create, edit, publish, and draft events; add descriptions, categories, images from the WordPress Media Library, registration limits, rooms, and equipment. Event images appear on upcoming-event cards, listings, and event details.
+- **Configurable categories:** Add, rename, and remove event categories. Categories still used by saved events are retained.
+- **Recurring events:** Repeat an event daily, weekly, or monthly, ending on a date up to two years away or after up to 100 occurrences. Each occurrence has its own event and registrations.
+- **Recurring edits:** Edit one occurrence, this and future occurrences, or all occurrences. Chosen fields, including room and equipment, are applied to the selected occurrences; dates shift by the corresponding amounts and registrations stay with their original occurrences. Room or equipment conflicts reject the entire group edit. Deleting an occurrence deletes only that occurrence.
+- **Named series:** Group individually scheduled events under a named series, independently of recurrence. Published series events appear together in event details, including past events; drafts remain private.
+- **Linked rooms:** Reserve an active room for an event, including multi-day events. Conflicting room reservations for newly created recurring occurrences are skipped and reported; those event occurrences are still created.
+
+### Event registration and waitlists
+
+- **Online registration:** Collect attendee names and email addresses, prevent duplicate registrations for the same event and email, and use site-wide and event-specific capacity limits and registration cutoffs.
+- **Per-event control:** Enable or disable registration for each event and optionally show attendee counts and capacity publicly. Site-wide registration is enabled by default, while new events do not enable registration by default unless that setting is changed. Public counts are enabled by default for new events; existing events retain their prior visibility setting on upgrade.
+- **Custom forms:** Customize instructions, labels, privacy notice, button text, and result messages. Add up to 20 default or event-specific fields: short text, paragraph text, email, phone, dropdown, or checkbox. Fields can be required.
+- **Staff review:** View registrations and custom answers under **Event Registrations**. Draft upcoming events are included there; past events remain accessible through the event manager.
+- **Series sign-ups:** Attendees can select eligible events in a named series or select all. The current event is always selected; additional events must be open and have matching registration questions. Results show successes and individual failures; additional events are not automatically waitlisted.
+- **Recurring sign-ups:** Staff can allow attendees to register for all upcoming occurrences of a recurring event. Unavailable, full, or question-mismatched occurrences are reported individually.
+- **Waitlists:** Visitors can join a full event's waitlist using the same registration details. When a place opens before registration closes, the earliest waiting person is registered and emailed. Staff can cancel registrations and waitlist entries; patrons cannot cancel themselves.
+- **Confirmations and reminders:** Optional immediate confirmations and 24-hour reminders are configured separately under **Settings > Event emails**. A registration remains saved if its confirmation cannot be sent, and the attendee is told to contact staff. Reminders require attendee opt-in and run through WordPress's hourly scheduled task; disabling the global reminder setting also disables previously opted-in reminders. Failed reminder sends are retried before the event; successful sends are not repeated. The hourly task also reconciles waitlists, even when reminders are disabled.
+- **Registration alerts:** Send staff alerts to the staff notification address and optionally specify up to 10 event-specific addresses for registration updates.
+
+### Room requests and bookings
+
+- **Public requests:** Visitors choose an available room, date, and time and can include an optional reason. Public requests are for a single day and use the site's timezone.
+- **Approval workflow:** Requests require staff approval by default; settings can instead confirm valid requests immediately. Review pending requests under **Room Approvals**, approve or deny them, and optionally include a comment in the requester's email.
+- **Availability and conflicts:** Room forms show a live conflict warning, and availability is checked again on save. Overlapping pending requests and approved bookings are treated as conflicts; public requests cannot override them.
+- **Booking rules:** Configure the maximum advance window, minimum notice, allowed time increment, and optional maximum public-request duration. A duration of zero means no maximum; staff bookings are exempt.
+- **Opening hours:** Configure weekly hours and special dates, including annually recurring exceptions. A specific-date exception takes precedence over an annual one. Public requests follow the selected day's hours, and closed days do not show a request button.
+- **Time choices:** Room-request dropdowns use 15-minute intervals and also enforce any stricter configured public increment. Existing staff bookings at other times remain editable.
+- **Staff bookings:** Staff can create private confirmed bookings and may book outside opening hours with a warning. A staff double-booking requires acknowledgment; for a recurring public event created from the room form, that acknowledgment covers only the first occurrence.
+- **Room directory:** Add rooms, set capacities and colors, and mark rooms unavailable for new reservations. Rooms with booking history or linked staff entries cannot be deleted; mark them unavailable instead.
+- **Linked reservations:** Events and staff-calendar entries can reserve rooms for their scheduled time. Multi-day reservations are split into daily segments and block overlapping public requests.
+
+### Equipment and staff scheduling
+
+- **Equipment inventory:** Add equipment, set quantities, and mark items unavailable for new reservations. Existing future reservations prevent reducing a quantity below the amount already reserved at the same time.
+- **Equipment reservations:** Attach equipment to room requests, staff room bookings, events, or staff entries, even if an event or staff entry has no room. Pending and approved reservations count against inventory. An equipment conflict prevents the entire save, including a recurring-event series.
+- **Private staff calendar:** Manage meetings, sick time, time off, and other configurable booking types in a separate calendar visible only to authorized staff. Filter entries by type, add optional private notes, and use 15-minute time choices; existing entries at other times remain editable.
+- **Staff controls:** Authorized staff can add, edit, and delete entries from the calendar or dashboard. Event, room-booking, and staff-entry creation or editing requires staff initials; the most recent initials are visible only to staff. Public room requests do not require initials.
+- **Staff dashboard:** The Home page summarizes upcoming events, room requests, active rooms, and staff entries, including today's remaining and in-progress items. **Rooms & Events** shows the room calendar alongside upcoming events.
+
+### Email notifications and approvals
+
+- **Notification options:** Enable staff room-request alerts, room-requester receipts, event-registration confirmations, staff registration alerts, and event reminders independently. Registration confirmations are enabled by default for new settings; the other optional notifications are off by default. Existing saved preferences are preserved.
+- **Room-request recipients:** Enter up to 10 notification addresses under **Settings > Email notifications**. Each receives a separate email. If the list is empty, the staff notification address is used; otherwise only the listed addresses receive room alerts. Staff event alerts and the test email continue to use the staff notification address.
+- **Approve and deny links:** Staff emails for pending requests can include HTTPS links that work without a WordPress login. Opening a link displays a confirmation page with an optional requester comment; the request changes only after confirmation, and normal conflict checks and requester notifications still apply.
+- **Link settings and security:** Turn the email links on or off and choose a validity period in days or **Never expires**. Links require an HTTPS WordPress admin URL and are enabled for seven days by default. Turning them off pauses previously sent links; re-enabling restores those that have not expired. Duration changes apply only to new links. Anyone holding or forwarded a link can make a decision, so send notifications only to trusted recipients. A never-expiring link remains usable until the request is decided or deleted. If links cannot be created, the staff email directs recipients to WordPress Room Approvals.
+- **Custom templates:** Edit each notification's subject and plain-text message. Messages are sent as styled HTML, with labeled lines presented as form-style details. Templates support `{subject}`, `{message}`, and the additional placeholders listed for each email. Approval and denial templates must contain `{message}` or `{comment}` so staff comments are delivered.
+- **Sender, logo, and testing:** Configure a plugin-only sender address and place the WordPress site logo at the top or bottom of emails. Leave the sender blank to use the WordPress default. Save settings before using **Send test email**, which sends to the staff notification address.
+- **Cancellations:** Staff can include a message when deleting an event that has not ended or cancelling a public or staff-created private room booking. Event attendees, waitlisted people, or the room contact receive the applicable notice. Deleting an event also deletes its registrations and linked room reservation. Cancellation messages are not saved. Templates can use `{message}` and `{comment}`; standard details and any otherwise omitted staff message are appended when necessary. Waitlist and status emails use WordPress mail regardless of optional submission-confirmation settings.
+- **Delivery:** Email uses the website's WordPress mail configuration. Configure and test your host's mail service, sender authorization, and spam filtering; WordPress accepting an email does not guarantee inbox delivery. Logo images may be blocked by email clients. Delivery failures are logged and, for staff actions, shown in a notice. Reminder and waitlist timing depends on site visits or a server cron triggering WordPress scheduled tasks.
+
+### Reports, newsletters, and privacy
+
+- **Reports and CSV:** Preview date-filtered room, equipment, and event reports and download separate CSV files. Dates are inclusive and use the site's timezone. Room and equipment reports show approved reservations, including private staff usage without personal contact details. Event reports include published and draft events overlapping the range and registration counts. Equipment usage predating the feature cannot be reconstructed.
+- **Monthly newsletter PDF:** Under **Settings > Newsletter**, choose a month and download a PDF of published events overlapping that month, including dates, times, descriptions, images, and the WordPress site logo. If no logo is set, the site name is used. Drafts, registrations, and room bookings are excluded. Images must be locally accessible to WordPress; unavailable images are reported.
+- **WordPress privacy tools:** **Tools > Export Personal Data** and **Tools > Erase Personal Data** include CommonCalendar records associated with the requested email address. Erasure anonymizes matching room bookings and registrations while retaining counts, and removes matching waitlist entries.
+- **Optional retention:** Set a retention period in days, or leave it at zero to disable automatic cleanup. Older room bookings and registrations are anonymized after the booking or event ends; older waitlist entries are removed. Cleanup runs in batches through WordPress scheduled tasks and permanently removes contact details, request reasons, and registration answers.
+- **Permissions:** Only users with `manage_calendar_system` can view staff schedules or manage calendar content. The staff login link uses the normal WordPress login; there is no separate plugin password system.
+- **Time display:** Calendars, forms, reports, newsletters, and emails use 12-hour AM/PM display independently of the WordPress time-format setting. Opening hours are entered with AM or PM; stored times and calendar exports remain machine-readable.
+
+## Shortcodes
+
+Add these to a page, post, or shortcode block:
+
+| Shortcode | Display |
+| --- | --- |
+| `[calendar_event_calendar]` | Unified calendar of published events and pending or approved public room bookings. |
+| `[calendar_room_calendar]` | Compatibility alias for the unified calendar. |
+| `[calendar_events]` | Published events, event details, and registration forms. |
+| `[calendar_upcoming_events]` | Upcoming event cards; defaults to three. Use `count="4"` or `count="5"` to show more, up to five. |
+| `[calendar_rooms]` | Room bookings and upcoming published events. Private bookings and event-linked room reservations are not shown as separate room entries. |
+| `[calendar_combined]` | Combined events and public room bookings calendar. |
+| `[calendar_staff_calendar]` | Staff-only monthly calendar. Visitors without staff access cannot view schedule details. |
+| `[calendar_system]` | Unified calendar, upcoming event listings, and registration forms. |
+| `[calendar_room_request]` | Public study-room request form. |
+
+Use only one calendar shortcode on a page. The calendar subscription URL is available on the public calendar and under **Settings > Calendar shortcodes**.
+
+## Privacy considerations
+
+An anonymized future reservation still occupies its room or event place; staff should cancel it separately if the person wants to free that place. Export and erasure cannot identify personal information entered in another person's free-text responses or remove information from emails, backups, logs, or other plugins. Review the site's privacy policy and retention requirements before enabling automatic cleanup.
+
+When room bookings are hidden from logged-out visitors, signed-in users can still see public bookings, and room requests and availability checks continue to work. Clear any page or CDN caches after changing this setting.
 
 ## Updates
 
@@ -22,137 +121,21 @@ Back up the site and database before updating. To update manually, upload the ne
 
 Install the first CommonCalendar release manually when upgrading from CommonsCal: older versions expect the old plugin name and ZIP filename during automatic updates.
 
-Once [the GitHub repository](https://github.com/cleclair-sudo/CommonsCal) is public, an active CommonCalendar installation also checks its latest published GitHub release during WordPress's normal plugin update checks. Install available updates from **Plugins** or **Dashboard > Updates**, or enable WordPress's plugin auto-updates if desired. The repository must be public and the site must be able to reach GitHub. To check again, use **Dashboard > Updates > Check again**. If the check fails, WordPress displays a warning on the update screens; uploading a ZIP remains available.
+Once [the GitHub repository](https://github.com/cleclair-sudo/CommonsCal) is public, an active CommonCalendar installation also checks its latest published GitHub release during WordPress's normal plugin update checks. Install updates from **Plugins** or **Dashboard > Updates**, or enable WordPress auto-updates. The repository must be public and the site must be able to reach GitHub. Use **Dashboard > Updates > Check again** to check again. If the check fails, WordPress displays a warning; uploading a ZIP remains available.
 
-For each update, increment the final version component and create an updated plugin ZIP. For each GitHub release, tag a stable version such as `v0.09.62`, publish the release (not a draft or prerelease), and attach a ZIP named `CommonCalendar-0.09.62.zip`. Its single top-level folder must be `community-calendar-study-rooms` and contain `community-calendar-study-rooms.php` with the same version and Update URI. The ZIP must contain the complete plugin, not GitHub's automatically generated source archive. Do not reuse a release version; WordPress only offers newer versions. The first version with GitHub update support must itself be installed by ZIP.
+For each update, increment the final version component and create an updated plugin ZIP. For each GitHub release, tag a stable version such as `v0.09.63`, publish the release (not a draft or prerelease), and attach a ZIP named `CommonCalendar-0.09.63.zip`. Its single top-level folder must be `community-calendar-study-rooms` and contain `community-calendar-study-rooms.php` with the same version and Update URI. The ZIP must contain the complete plugin, not GitHub's automatically generated source archive. Do not reuse a release version; WordPress only offers newer versions. The first version with GitHub update support must itself be installed by ZIP.
 
-## Code layout
+## Developer notes
 
-`community-calendar-study-rooms.php` is the WordPress plugin entry point. Feature code is organized under `includes/`:
+`community-calendar-study-rooms.php` is the WordPress plugin entry point; keep it at the plugin folder root. Feature code is organized under `includes/`:
 
-- `core.php`: database setup, settings, shared helpers, and registration-field definitions.
-- `updates.php`: GitHub release checks and WordPress update package validation.
-- `frontend-forms.php`: staff access links and the event, room, and staff forms.
-- `admin-settings.php`: settings screen, settings persistence, and admin menu setup.
-- `admin-management.php`: staff event, room, and staff-calendar management screens and actions.
-- `equipment.php` and `reports.php`: equipment inventory and reservations, plus report previews and CSV exports.
-- `calendar-system-admin.css`: dashboard-only styling for the Home, Rooms, and Staff calendar pages.
-- `room-validation.php` and `room-actions.php`: room booking validation, conflict checks, and booking actions.
-- `events.php` and `registrations.php`: event creation/recurrence, registration handling, and reminder delivery.
-- `event-series.php` and `waitlist.php`: series editing, attendee cancellations, and waitlist promotion.
-- `privacy.php` and `ical.php`: WordPress privacy tools, retention, and public event subscriptions.
-- `newsletter.php`: staff-only monthly event newsletter PDF export.
-- `calendars.php`: calendar rendering, public notices, and WordPress shortcodes.
+- `core.php` and `updates.php`: database setup, settings, shared helpers, registration-field definitions, and GitHub release checks.
+- `frontend-forms.php`, `calendars.php`, and `ical.php`: public and staff forms, calendar displays, shortcodes, and event subscriptions.
+- `admin-settings.php` and `admin-management.php`: settings, dashboard screens, and staff management actions.
+- `room-validation.php`, `room-actions.php`, and `room-hours.php`: room availability, conflicts, booking actions, and opening hours.
+- `events.php`, `event-series.php`, `registrations.php`, and `waitlist.php`: event scheduling, series, registration, reminders, and waitlist promotion.
+- `equipment.php` and `reports.php`: equipment inventory and reservations, report previews, and CSV exports.
+- `privacy.php` and `newsletter.php`: privacy tools and monthly newsletter PDF export.
+- Dashboard styles are in `assets/calendar-system-admin.css`.
 
-Keep the entry point at the plugin folder root so WordPress can discover and activate the plugin. PHP and JavaScript functions include short comments describing their purpose.
 After changing PHP dependencies, run `composer install --no-dev` and include the resulting `vendor/` folder in the plugin ZIP.
-
-## Add it to the website
-
-Create a WordPress page and add the shortcodes for the calendars you want to show:
-
-- `[calendar_event_calendar]` displays the unified monthly calendar of published events and pending or approved room bookings.
-- `[calendar_room_calendar]` is retained as a compatibility alias for the same unified calendar. Use only one calendar shortcode on a page.
-- `[calendar_events]` displays published events only, including event details and registration forms.
-- `[calendar_upcoming_events]` displays the next three published events as compact cards. Set `count="4"` or `count="5"` to show up to five cards; the allowed range is three to five. Event cards include the event image, date, and a details button that opens its registration dialog.
-- `[calendar_rooms]` displays room bookings and upcoming published events. Private bookings and event-linked room reservations are not shown as separate room entries.
-- `[calendar_combined]` explicitly displays the combined events and public room bookings calendar.
-- `[calendar_staff_calendar]` displays the staff-only monthly calendar. Visitors who are not signed in as calendar staff cannot view staff schedule details.
-- `[calendar_system]` displays the unified calendar, upcoming event listings, and event registration forms.
-- `[calendar_room_request]` displays the public study-room request form.
-
-The unified calendar is a month grid with a separate day box for every date; each box lists that day's events and room bookings with times. Each event can show or hide its registration count and capacity publicly. Room entries follow the public room-privacy settings and never reveal patron contact details. These are native WordPress shortcodes, so the calendar and forms render within the site's theme and can be placed in a page, post, or shortcode block.
-
-Use **Day**, **Week**, or **Month** beneath the category filters to change the public calendar view. Previous and Next move by the selected period, and category filters remain applied. On narrow screens, days are stacked for easier reading and room requests.
-
-Use **Print calendar** to print the selected calendar view. In Month or Week view, **Print events list** prints a chronological list of published events for that period instead of a grid; it respects the selected categories and excludes room bookings. The month list covers the selected month only, while the week list follows the configured start of the week. Printing opens a new window, so pop-ups must be allowed.
-
-The public calendar and **Settings > Calendar shortcodes** include a subscription URL for published events. Copy it into the calendar subscription feature in Google Calendar, Apple Calendar, or Outlook. The feed updates as published events change; refresh timing is controlled by the calendar app. It does not contain room bookings, registrations, or staff entries, and subscribing does not register anyone for an event.
-
-Staff can choose an image from the WordPress Media Library when creating or editing an event. The image is saved with the event and shown on the upcoming-event cards, event listings, and event details.
-
-The unified calendar is interactive: visitors can use **Request** on a day to open the room-request popup, choose an available room, and enter the requested date and time. Staff use **Add** on a day to create a private room booking or check **Public event** to publish an event using that reserved room. Private bookings are hidden from public calendars but still block the room from overlapping reservations. Every event title opens a details popup; its registration form is shown only when staff enable online registration for that event and the site-wide registration setting allows it. Staff can edit events from their calendar entries. The staff calendar remains separate and private; **Add staff time** opens a popup whose type dropdown uses the booking types configured in Settings. A **Staff login** link opens the standard WordPress login and returns to the calendar after sign-in. There is no separate plugin password system. Staff-only controls appear only to authorized users; public room requests require staff approval by default, configurable in Settings. Calendar pages send no-cache headers because their controls depend on the signed-in user's permissions. After updating, clear any existing page, host, or CDN cache for these pages.
-
-Calendar action results appear in a dismissible popup; if JavaScript is unavailable, the message remains visible above the calendar. A pending room request confirms receipt and reminds the requester to check their junk folder for email.
-
-When staff edit an event, staff-time entry, or room booking from a calendar, the edit dialog has a **Save changes** action and a delete action. Deleting an event also deletes its registrations and linked room reservation; deleting a staff-time entry removes its linked room reservation. Rooms with bookings or staff entries cannot be deleted; mark them unavailable instead.
-
-Calendar event and room forms group related fields into sections. In a staff room booking, check **Public event** to reveal the event, repeat, series, and registration settings.
-
-Only users with the `manage_calendar_system` capability can view the staff calendar or manage calendar content. Administrators and Editors receive this capability when the plugin is activated; to grant access to another role, assign the capability with a role-management plugin. Staff can also add or remove meetings, sick time, time off, and other entries from **CommonCalendar > Staff calendar**. The calendar uses the site's configured timezone and week-start preference.
-
-On the staff calendar, check one or more entry types to show matching entries; leave all types unchecked to show everything. The dashboard's upcoming entries list uses the same filter. Type choices come from **Settings > Calendar colors > Staff booking types**.
-
-Staff calendar entries can include optional private additional notes, available when editing the entry. Their time dropdowns offer 15-minute intervals; existing entries with other times remain editable.
-
-On plugin updates, the staff calendar table is added automatically without removing existing events, registrations, rooms, or bookings.
-Room requests include an optional reason field; staff can review the reason alongside each request in the Rooms panel.
-
-## Settings and customization
-
-Open **CommonCalendar > Settings** to choose colors for event and room entries, a default staff color, and a separate color for each staff booking type. Under **Settings > Rooms**, optionally set a calendar color for each room; leave it blank to use the default room color. If room names are hidden from visitors, their bookings use the default color to protect room privacy. Events and staff entries keep their own colors even when linked to rooms. Add or rename types such as sick time and comp time. Add, rename, and remove event categories; the default categories are Teen, Adult, and Children. A category already used by a saved event is retained if you remove it. The Shortcodes section on the Settings page lists the event-only, room-only, and combined calendar options.
-
-Use **CommonCalendar > Rooms & Events** to view the monthly room-booking calendar alongside upcoming events, add or edit reservations, and review requests and their reasons. **Settings > Rooms** is where staff add rooms, edit capacity and availability, and maintain the Room Directory. Public room requests include an optional reason-for-requesting field. **Staff calendar** has a private monthly calendar for adding and editing meetings, sick time, and time off.
-
-The Settings panel also includes:
-
-- Public room-booking rules for the maximum advance window, minimum notice, allowed time increments, weekly opening hours, and holiday or special-date hours. Staff can book outside opening hours but receive a warning.
-- An optional maximum duration in minutes per public room request. Zero means no maximum; staff bookings are exempt.
-- Equipment inventory: add items, set quantities, and mark items unavailable for new reservations. Existing future reservations prevent reducing the quantity below the amount already reserved at once.
-- A choice between requiring staff approval for room requests and confirming valid requests immediately.
-- Event registration controls to disable public registrations, set a site-wide attendee limit alongside event-specific limits, or close registrations a chosen number of minutes before an event.
-- Event registration form customization, including the default registration state for new events, form instructions, attendee name/email labels, submit text, privacy notice, success/closed/full/unavailable messages, reminder opt-in text, and up to 20 reusable default custom fields. Fields can be short text, paragraph text, email, phone, dropdown, or checkbox, and may be required.
-- Calendar display options for the first day of the week, initial month, and whether visitors see event category labels.
-- Optional email notifications for staff room-request alerts, room-requester receipts, and event-registration confirmations. Registration confirmations are enabled by default for new settings; the other notifications are off by default. Existing saved preferences are preserved. Emails use the website host's mail configuration.
-- Under **Settings > Email notifications**, enable **A public room request is received** and optionally enter up to 10 room request notification addresses, one per line or separated by commas. Each receives a separate email. If the list is empty, the staff notification address receives room alerts as before; if it is not empty, only the listed addresses receive them. Event registration alerts and the test email continue to use the staff notification address.
-- Under **Settings > Email notifications**, staff can turn approve and deny links for pending room requests on or off and choose their validity in days or **Never expires**. Links are enabled for seven days by default and require an HTTPS WordPress admin URL. Turning links off pauses existing links as well as preventing new ones; re-enabling them restores any that have not expired. Duration changes apply only to new links. The links do not require a login: anyone holding or forwarded one can make a decision, so only send notifications to trusted recipients. A never-expiring link remains usable until the request is decided or deleted. Opening a link shows a confirmation page with an optional requester comment; nothing changes until confirmation. The usual booking conflict check and requester email still apply. If links cannot be created, the staff email says to review the request in WordPress. WordPress scheduled tasks clean up expired link records.
-- Optional staff email alerts for each new event registration, sent to the configured staff notification address.
-- Under **CommonCalendar > Settings > Event emails**, enable instant registration confirmations and 24-hour event reminders separately, then save the calendar settings. The global reminder setting controls whether the opt-in appears and whether reminders are sent, including to previously opted-in attendees.
-- Email templates with editable subjects and plain-text messages for each notification type, a CommonCalendar-only sender address, and site logo placement at the top or bottom. Messages are sent as styled HTML, with labeled lines such as `Room: Blue room` displayed as form-style details; no additional fields are added to the message. Leave the sender blank to use WordPress's default. The original notification is available through `{subject}` and `{message}`; each template lists its other placeholders. Approval and denial messages must include `{message}` or `{comment}` so staff comments are included.
-- A **Send test email** button sends to the saved staff notification address using the saved sender and logo settings. Save first, then check the inbox and spam folder.
-- Public room-calendar privacy options to hide room names and/or booking status. Requester and registrant contact details remain private to staff.
-- Under **Settings > Public booking privacy**, enable **Hide room bookings from logged-out visitors** to show only published events in public calendar listings. Signed-in users can still see public bookings, and room requests and availability checks continue to work. Clear any page or CDN caches after changing this setting.
-- Optional personal-data retention in days. Zero (the default) disables automatic cleanup. When enabled, older room bookings and event registrations are anonymized after the booking or event ends, while historical usage and registration counts remain; older waitlist entries are removed. Cleanup runs in batches through WordPress scheduled tasks and permanently removes contact details, request reasons, and registration answers.
-
-Other defaults: public room requests require staff approval, event registration is enabled, booking rules and the global event capacity are unrestricted, the calendar follows the WordPress week-start setting and opens to the current month, and public event counts and category labels and room names/status are shown.
-
-## How it works
-
-- Event registration collects a name and email address. Staff can set an optional registration limit. Duplicate registrations for the same event and email are prevented.
-- When event-registration confirmation emails are enabled under **Settings > Event emails**, each successful registration is emailed immediately, including each successful series or recurring-event registration. If sending fails, the registration remains saved and the attendee is told to contact staff. Existing sites that previously disabled confirmations must enable the setting to send them.
-- When a registration-enabled event is full, visitors can join its waitlist with the same registration details. If a place opens before registration closes, the earliest waiting person is registered automatically and emailed. Staff can see both lists and cancel an attendee from **Event Registrations**; cancellation also fills available places. Increased event capacity is handled when the event is saved; changes to the site-wide limit are reconciled by WordPress's hourly scheduled task or the next registration attempt. Patrons cannot cancel themselves.
-- Staff approve or deny public room requests in **Room Approvals**. The calendar's **Approve / Deny** link opens the corresponding request in that dashboard page; it does not make the decision. Staff can include an optional comment in the approval or denial email. When deleting an event that has not ended, staff can include a message to its registered and waitlisted attendees. Deleting a public or staff-created private room booking emails its contact and can include a message. Cancellation messages are not saved. Event registration cancellations also send emails. Waitlist and status emails use WordPress mail regardless of the optional submission-confirmation settings. Configure and test the website's mail delivery; failures are logged and, for staff actions, shown in a notice. Email delivery cannot be guaranteed by CommonCalendar.
-- Cancellation email templates can use `{message}` for the standard cancellation details and staff message, or `{comment}` for the message alone. If a custom cancellation template omits `{message}`, the standard details are appended, along with the staff message if it is not already included.
-- Staff can create and edit events, publish or leave them as drafts, and set a registration limit.
-- Staff must enter their initials each time they create or edit an event, room booking, or staff-calendar entry. The most recent initials are visible only to staff; existing entries may have no initials until edited. Public room requests do not require initials.
-- CommonCalendar displays times in 12-hour AM/PM format in calendars, forms, reports, newsletters, and email notifications, independently of the WordPress time-format setting. Opening hours are entered with AM or PM; stored times and calendar exports remain machine-readable.
-- Each event has a **Show attendee counts and capacity publicly** option, enabled by default for new events. On upgrade, existing events retain the previous global visibility setting. Staff can still see counts, and registration limits continue to apply even when counts are hidden.
-- Each event's registration form can include up to 20 custom fields: short text, paragraph text, email, phone, dropdown, or checkbox. Fields can be marked required; dropdown choices are set one per line. Staff can view submitted answers with each event's registration list.
-- Each event can override the site-wide registration default. The event editor reveals the optional event-specific custom-field builder and up to 10 email recipients for registration updates when registration is enabled. Existing events keep their registration state after the database upgrade; new events follow the **Enable registration by default** setting, which is off by default.
-- Reminder emails are sent to opted-in registrants within 24 hours before published events by WordPress's hourly scheduled task. Failed sends are logged and retried on later runs before the event; successful sends are not repeated. The hourly task also reconciles waitlists even when reminders are disabled. Delivery time depends on site visits or a real server cron triggering WordPress scheduled tasks. WordPress accepting a test email does not guarantee inbox delivery; configure and verify the host's mail service (including sender authorization and spam filtering). Logo images use the WordPress site logo and may be blocked by email clients.
-- The event editor and staff-time form have an always-visible optional room dropdown. Choose a room to reserve it for the same scheduled time, or leave **No room reservation** selected. Add rooms under **CommonCalendar > Settings > Rooms** first.
-- Events can be assigned a configurable category; the public event calendar and event list include a multi-select checkbox category filter that applies immediately when changed.
-- Staff can create a named event series or attach an event to an existing series in any event editor. A named series groups individually scheduled events and is independent of recurrence; recurring occurrences can also belong to a named series. Editing an occurrence can change its series, and applying an edit to recurring occurrences applies the chosen series to those occurrences. Existing events are not assigned to a named series automatically.
-- The calendar's category filters also include recurring-event and series checkboxes. The **Filter by category** heading is hidden by default; enable it under **Settings > Calendar display**. Select either or both event-type checkboxes to show matching events; with both selected, events matching either checkbox are shown. Leave both unchecked to show all events. Category filters still apply, and room bookings remain visible on combined calendars. Event details list all published events in the same named series, including past events, without exposing drafts.
-- An attendee can expand **Events in [series name]** to see all published events in the series and, when registering, select individual eligible events or select all. The current event is always selected and cannot be unchecked. Only open events with identical registration questions can be selected. Each event is checked separately when submitted; the result lists successes and failures, including full events and existing registrations. Additional events are not automatically waitlisted.
-- When creating a recurring event, staff can enable **Let attendees register for all recurring events**. Each attendee then chooses whether to register for all upcoming occurrences; unavailable, full, or question-mismatched occurrences are reported individually. Staff can change this option when editing recurring events, using the existing edit scope to apply it to multiple occurrences.
-- New events can repeat daily, weekly, or monthly, ending on a date (up to two years out) or after a chosen number of occurrences (up to 100). Each repeat is a separate event and registration listing.
-- When editing a recurring event, choose this event, this and future recurring events, or all recurring events. Every displayed field, including the room and equipment choices, replaces that field for all selected occurrences; start and end dates shift by the same respective amounts, and registrations stay with their original occurrences. A room or equipment conflict rejects the entire recurring-group edit. Deleting an event still deletes only the selected occurrence.
-- Staff can reserve an active room for an event or staff-calendar entry. Reservations block overlapping public requests and are split into daily segments for multi-day schedules. If a room conflict affects a recurring event, that event occurrence is still created and its room reservation is skipped; the save confirmation reports how many reservations were skipped.
-- In the staff room-booking form, an overlapping booking can be saved only after staff acknowledge the double-booking warning. Public requests cannot override conflicts. For a public event created from that form, the acknowledgment covers the first occurrence only; later conflicting recurring reservations are skipped and reported. Equipment availability is checked separately.
-- Staff can add rooms, set their capacities, and mark rooms unavailable for new requests under **Settings > Rooms**. Rooms with booking history cannot be deleted.
-- By default, public room requests remain pending until staff approve or deny them; Settings can instead confirm valid requests immediately. Staff can also create confirmed room bookings directly.
-- Overlapping pending requests and approved bookings are treated as conflicts. Public room requests use the WordPress site's configured timezone and are for a single day; reservations linked to multi-day event or staff entries are split into daily segments.
-- Room forms show a live conflict warning, and availability is checked again when a booking is saved. Public time choices follow the selected day's opening hours, and the calendar does not show a request button on closed dates. In Settings, choose Open and enter both times for each day with specific hours, then save calendar settings. Staff can book outside hours with a warning. Special dates can be closed or use custom hours and optionally repeat yearly; a specific-date exception takes precedence over a yearly one. Existing daily hours become the initial hours for every weekday.
-- Room-request times use 15-minute dropdowns. A stricter configured public time increment still applies, so only times satisfying both rules are offered. Existing staff bookings with other times remain editable.
-- Room requests, staff room bookings, events, and staff-calendar entries can reserve equipment even when an event or staff entry has no room. Pending requests and approved reservations count against inventory. An equipment conflict prevents the entire save, including a recurring event series; staff can change the requested quantity or time and retry.
-- The Reports page uses inclusive site-local dates. Room and equipment reports show approved reservations, including private staff usage without personal contact details. Event reports include published and draft events overlapping the range and registration counts. Equipment reservations are tracked only from the version that introduced this feature; past usage cannot be reconstructed.
-
-## Personal data requests
-
-WordPress **Tools > Export Personal Data** and **Tools > Erase Personal Data** include CommonCalendar records associated with the requested email address. Erasure anonymizes matching room bookings and registrations while retaining their booking and attendance counts, and removes matching waitlist entries. An anonymized future reservation still occupies its room or event place; staff should cancel it separately if the person wants to free that place. Export and erasure cannot identify personal information entered in another person's free-text responses, or remove information from emails, backups, logs, or other plugins. Review the site's own privacy policy and retention requirements before enabling automatic cleanup.
-
-## Requirements
-
-- WordPress 6.0 or later
-- PHP 7.4 or later

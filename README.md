@@ -2,7 +2,7 @@
 
 A WordPress plugin for library events, room reservations, and staff scheduling, built by librarians for librarians. Originally developed by SMTI for McArthur Library.
 
-Need help or have a feature request? Contact Corie at cleclair@southernmainetech.org.
+Need help or have a feature request? Contact Corie at cleclair@southernmainetech.org or cleclair@mcarthurlibrary.org
 
 ## Quick install
 

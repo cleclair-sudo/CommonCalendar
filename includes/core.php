@@ -3,7 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Returns the fully prefixed database table name for a plugin table. */
 function calsys_table($name) {
     global $wpdb;
     return $wpdb->prefix . 'calsys_' . $name;
@@ -237,7 +236,6 @@ function calsys_deactivate() {
 }
 register_deactivation_hook(CALSYS_PLUGIN_FILE, 'calsys_deactivate');
 
-/** Loads the plugin stylesheet on public pages. */
 function calsys_enqueue_styles() {
     $style_path = plugin_dir_path(CALSYS_PLUGIN_FILE) . 'assets/calendar-system.css';
     wp_enqueue_style(
@@ -392,7 +390,6 @@ function calsys_validate_email_settings($input) {
     return array('from_email' => $from_email, 'logo_placement' => $input['logo_placement'], 'templates' => $templates);
 }
 
-/** Returns the supported custom event-registration field types. */
 function calsys_registration_field_types() {
     return array(
         'text' => __('Short text', 'community-calendar-study-rooms'),
@@ -404,7 +401,6 @@ function calsys_registration_field_types() {
     );
 }
 
-/** Validates and sanitizes custom registration fields submitted in event settings. */
 function calsys_sanitize_registration_fields($raw_fields) {
     if (!is_array($raw_fields) || count($raw_fields) > 20) {
         return false;
@@ -465,7 +461,6 @@ function calsys_decode_registration_fields($json) {
     return $sanitized === false ? array() : $sanitized;
 }
 
-/** Renders the editable custom-field builder for event registration forms. */
 function calsys_registration_fields_editor($fields = array(), $name_prefix = 'registration_fields', $present_name = 'registration_fields_present') {
     ob_start();
     ?>
@@ -506,7 +501,6 @@ function calsys_event_registration_editor($enabled = false, $fields = array(), $
     return ob_get_clean();
 }
 
-/** Validates and sanitizes event-specific registration notification addresses. */
 function calsys_sanitize_registration_recipients($raw_recipients) {
     if (!is_string($raw_recipients) || strlen($raw_recipients) > 2000) {
         return false;
@@ -531,7 +525,6 @@ function calsys_sanitize_registration_recipients($raw_recipients) {
     return $recipients;
 }
 
-/** Decodes and validates the stored event-specific notification address list. */
 function calsys_decode_registration_recipients($raw_recipients) {
     $recipients = json_decode((string) $raw_recipients, true);
     if (!is_array($recipients)) {
@@ -569,7 +562,6 @@ function calsys_validate_room_email_review_days($value) {
     return (int) $value;
 }
 
-/** Renders one registration-field row in the event editor. */
 function calsys_registration_field_editor_row($index, $field = array(), $name_prefix = 'registration_fields') {
     $types = calsys_registration_field_types();
     $type = $field['type'] ?? 'text';
@@ -593,7 +585,6 @@ function calsys_registration_field_editor_row($index, $field = array(), $name_pr
     <?php
 }
 
-/** Returns default values for calendar display, booking, and notification settings. */
 function calsys_default_settings() {
     return array(
         'calendar_colors' => array(
@@ -623,6 +614,7 @@ function calsys_default_settings() {
             'max_advance_months' => 0,
         ),
         'room_approval_required' => 1,
+        'room_equipment_enabled' => 1,
         'event_registration' => array(
             'enabled' => 1,
             'max_capacity' => 0,
@@ -678,7 +670,6 @@ function calsys_default_settings() {
     );
 }
 
-/** Validates and sanitizes one editable registration-form text setting. */
 function calsys_registration_setting_text($registration, $key, $default, $max_length) {
     $value = $registration[$key] ?? $default;
     if (!is_string($value)) {
@@ -707,6 +698,7 @@ function calsys_get_settings() {
         'event_categories' => $defaults['event_categories'],
         'booking_rules' => $defaults['booking_rules'],
         'room_approval_required' => $defaults['room_approval_required'],
+        'room_equipment_enabled' => $defaults['room_equipment_enabled'],
         'event_registration' => $defaults['event_registration'],
         'calendar_display' => $defaults['calendar_display'],
         'notifications' => $defaults['notifications'],
@@ -798,6 +790,9 @@ function calsys_get_settings() {
     $settings['room_approval_required'] = isset($saved['room_approval_required'])
         ? (int) (bool) $saved['room_approval_required']
         : $defaults['room_approval_required'];
+    $settings['room_equipment_enabled'] = isset($saved['room_equipment_enabled'])
+        ? (int) (bool) $saved['room_equipment_enabled']
+        : $defaults['room_equipment_enabled'];
 
     $registration = is_array($saved['event_registration'] ?? null) ? $saved['event_registration'] : array();
     $settings['event_registration'] = array(
@@ -895,7 +890,6 @@ function calsys_get_settings() {
     return $settings_cache;
 }
 
-/** Returns configured staff-calendar type keys and their display labels. */
 function calsys_staff_types() {
     $settings = calsys_get_settings();
     $types = array();
@@ -905,13 +899,11 @@ function calsys_staff_types() {
     return $types;
 }
 
-/** Returns configured event-category labels keyed by category identifier. */
 function calsys_event_categories() {
     $settings = calsys_get_settings();
     return $settings['event_categories'];
 }
 
-/** Retrieves active rooms for new public or staff bookings. */
 function calsys_active_rooms() {
     global $wpdb;
     return $wpdb->get_results(
@@ -927,12 +919,10 @@ function calsys_all_rooms() {
     );
 }
 
-/** Formats a room name and capacity for selection controls. */
 function calsys_room_option_label($room) {
     return $room->name . (empty($room->active) ? ' (' . __('inactive', 'community-calendar-study-rooms') . ')' : '');
 }
 
-/** Returns the configured calendar week-start day as a weekday index. */
 function calsys_week_start_day() {
     $display = calsys_get_settings()['calendar_display'];
     return $display['week_start_day'] === 'site'
@@ -950,7 +940,6 @@ function calsys_event_capacity($event_capacity) {
     return $event_capacity;
 }
 
-/** Determines whether online registration remains open for an event. */
 function calsys_event_registration_is_open($starts_at) {
     $registration = calsys_get_settings()['event_registration'];
     if (!$registration['enabled']) {
@@ -963,13 +952,11 @@ function calsys_event_registration_is_open($starts_at) {
     return $start->getTimestamp() - ((int) $registration['cutoff_minutes'] * 60) > time();
 }
 
-/** Indicates whether public calendar entries should show registration counts. */
 function calsys_show_public_registration_counts($event) {
     return current_user_can('manage_calendar_system') ||
         !empty($event->show_registration_counts);
 }
 
-/** Indicates whether public calendar entries should show event categories. */
 function calsys_show_public_category_labels() {
     return current_user_can('manage_calendar_system') ||
         (bool) calsys_get_settings()['calendar_display']['show_category_labels'];
@@ -984,7 +971,6 @@ function calsys_cancellation_comment($raw_comment) {
     return strlen($comment) <= 16000 ? $comment : false;
 }
 
-/** Validates staff initials supplied for a calendar entry. */
 function calsys_validate_staff_initials($raw_initials) {
     if (!is_string($raw_initials)) {
         return false;
@@ -1094,7 +1080,7 @@ function calsys_calendar_entry_color($calendar_type, $entry_type = '', $room_col
         return is_string($room_color) && sanitize_hex_color($room_color)
             ? sanitize_hex_color($room_color) : $settings['calendar_colors']['rooms'];
     }
-    // For events: use category color if available (public view), otherwise use room color if available (staff view), then default to event color
+    // Public events use category colors; staff views can use room colors instead.
     if ($calendar_type === 'event') {
         if ($category_color && is_string($category_color) && sanitize_hex_color($category_color)) {
             return sanitize_hex_color($category_color);

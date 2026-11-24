@@ -3,7 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Redirects a staff user to a plugin admin page with a result notice. */
 function calsys_admin_redirect($page, $notice, $extra_args = array()) {
     wp_safe_redirect(add_query_arg(
         array_merge(array('page' => $page, 'calsys_notice' => $notice), $extra_args),
@@ -12,7 +11,6 @@ function calsys_admin_redirect($page, $notice, $extra_args = array()) {
     exit;
 }
 
-/** Sends an action result to the frontend or the corresponding admin screen. */
 function calsys_action_redirect($frontend, $page, $notice, $skipped = 0) {
     $extra_args = $skipped ? array('calsys_skipped' => absint($skipped)) : array();
     if ($frontend) {
@@ -21,7 +19,6 @@ function calsys_action_redirect($frontend, $page, $notice, $skipped = 0) {
     calsys_admin_redirect($page, $notice, $extra_args);
 }
 
-/** Returns the visitor to the referring page with a public result notice. */
 function calsys_frontend_redirect($notice, $extra_args = array()) {
     $referer = wp_get_referer();
     $destination = wp_validate_redirect($referer, home_url('/'));
@@ -37,7 +34,6 @@ function calsys_result_notice($content, $popup) {
     return '<div class="calsys-notice" role="status"' . $attributes . '>' . $content . '</div>';
 }
 
-/** Renders a translated result notice from a validated query parameter. */
 function calsys_public_notice($popup = false) {
     $key = sanitize_key(wp_unslash($_GET['calsys_notice'] ?? ''));
     $settings = calsys_get_settings();
@@ -85,6 +81,7 @@ function calsys_public_notice($popup = false) {
         'conflict_check_failed' => __('A system error occurred while checking availability. Please try again.', 'community-calendar-study-rooms'),
         'invalid_room_request' => __('Please check the room request details and try again.', 'community-calendar-study-rooms'),
         'equipment_conflict' => __('The requested equipment is unavailable for that time or quantity. Please choose another time or quantity.', 'community-calendar-study-rooms'),
+        'equipment_disabled' => __('Equipment requests are disabled for room bookings. Please reload the form and try again.', 'community-calendar-study-rooms'),
         'invalid' => __('Please check the submitted information and try again.', 'community-calendar-study-rooms'),
         'saved' => __('Event saved.', 'community-calendar-study-rooms'),
         'saved_room_conflicts' => '',
@@ -592,7 +589,6 @@ function calsys_render_calendar($title, $events, $month, $calendar_type, $view =
     return ob_get_clean();
 }
 
-/** Returns valid, unique event categories selected in the current request. */
 function calsys_selected_event_categories() {
     $raw_selected = wp_unslash($_GET['calsys_category'] ?? array());
     $categories = calsys_event_categories();
@@ -612,7 +608,6 @@ function calsys_selected_event_categories() {
     return $selected;
 }
 
-/** Returns valid, unique staff entry types selected in the current request. */
 function calsys_selected_staff_types() {
     $raw_selected = wp_unslash($_GET['calsys_staff_type'] ?? array());
     $types = calsys_staff_types();
@@ -632,7 +627,6 @@ function calsys_selected_staff_types() {
     return $selected;
 }
 
-/** Builds a prepared SQL fragment limiting results to selected staff types. */
 function calsys_staff_type_sql() {
     global $wpdb;
     $types = calsys_selected_staff_types();
@@ -643,7 +637,6 @@ function calsys_staff_type_sql() {
     return $wpdb->prepare(" AND entry_type IN ($placeholders)", $types);
 }
 
-/** Builds a prepared SQL fragment limiting results to selected event categories. */
 function calsys_event_category_sql($column = 'e.category') {
     global $wpdb;
     $categories = calsys_selected_event_categories();
@@ -654,13 +647,11 @@ function calsys_event_category_sql($column = 'e.category') {
     return $wpdb->prepare(" AND $column IN ($placeholders)", $categories);
 }
 
-/** Returns a validated recurring or named-series filter. */
 function calsys_event_group_filter($key) {
     $value = isset($_GET[$key]) && is_string($_GET[$key]) ? wp_unslash($_GET[$key]) : 'all';
     return $value === 'yes' ? 'yes' : 'all';
 }
 
-/** Includes events matching any selected recurrence or series filter. */
 function calsys_event_group_filter_sql() {
     $conditions = array();
     if (calsys_event_group_filter('calsys_recurring') === 'yes') {
@@ -672,7 +663,6 @@ function calsys_event_group_filter_sql() {
     return $conditions ? ' AND (' . implode(' OR ', $conditions) . ')' : '';
 }
 
-/** Whether room-booking listings are hidden for the current visitor. */
 function calsys_hide_guest_room_bookings() {
     return !is_user_logged_in() && !empty(calsys_get_settings()['privacy']['hide_guest_room_bookings']);
 }
@@ -825,25 +815,21 @@ function calsys_event_calendar_view($dialog_events = array(), $calendar_mode = '
     return $output . '</div>';
 }
 
-/** WordPress shortcode callback for the unified event and room calendar. */
 function calsys_event_calendar_shortcode() {
     return calsys_event_calendar_view();
 }
 add_shortcode('calendar_event_calendar', 'calsys_event_calendar_shortcode');
 
-/** Renders only public events with their event detail and registration dialogs. */
 function calsys_events_calendar_shortcode() {
     return calsys_event_calendar_view(array(), 'events');
 }
 add_shortcode('calendar_events', 'calsys_events_calendar_shortcode');
 
-/** Renders public room bookings without event entries. */
 function calsys_rooms_calendar_shortcode() {
     return calsys_event_calendar_view(array(), 'rooms');
 }
 add_shortcode('calendar_rooms', 'calsys_rooms_calendar_shortcode');
 
-/** Renders the combined events and public room bookings calendar. */
 function calsys_combined_calendar_shortcode() {
     return calsys_event_calendar_view(array(), 'combined');
 }
@@ -905,7 +891,6 @@ function calsys_upcoming_events_shortcode($attributes = array()) {
 }
 add_shortcode('calendar_upcoming_events', 'calsys_upcoming_events_shortcode');
 
-/** Renders configured custom fields in a public event registration form. */
 function calsys_registration_form_fields($fields) {
     if (!$fields) {
         return '';
@@ -941,7 +926,6 @@ function calsys_registration_form_fields($fields) {
     return ob_get_clean();
 }
 
-/** Renders event detail dialogs and registration forms for calendar events. */
 function calsys_render_event_registration_forms($events) {
     global $wpdb;
     $registration_settings = calsys_get_settings()['event_registration'];
@@ -1085,7 +1069,6 @@ function calsys_room_calendar_shortcode() {
 }
 add_shortcode('calendar_room_calendar', 'calsys_room_calendar_shortcode');
 
-/** WordPress shortcode callback for the staff-only calendar and entry editor. */
 function calsys_staff_calendar_shortcode() {
     if (!current_user_can('manage_calendar_system')) {
         return '<div class="calsys-calendar-widget calsys-calendar-widget-staff">' .
@@ -1125,7 +1108,6 @@ function calsys_staff_calendar_shortcode() {
 }
 add_shortcode('calendar_staff_calendar', 'calsys_staff_calendar_shortcode');
 
-/** WordPress shortcode callback that renders the upcoming event list. */
 function calsys_events_shortcode() {
     global $wpdb;
     $category_sql = calsys_event_category_sql() . calsys_event_group_filter_sql();
@@ -1191,7 +1173,6 @@ function calsys_events_shortcode() {
 }
 add_shortcode('calendar_system', 'calsys_events_shortcode');
 
-/** WordPress shortcode callback that renders the public room-request form. */
 function calsys_room_request_shortcode() {
     return '<div class="calsys-calendar-widget calsys-calendar-widget-rooms">' .
         calsys_public_notice(true) .

@@ -636,6 +636,11 @@
     content: "";
 }
 
+.calsys-room-equipment summary {
+    cursor: pointer;
+    font-weight: 600;
+}
+
 .calsys-equipment-fields {
     border: 1px solid var(--calsys-border);
     border-radius: 0.3rem;

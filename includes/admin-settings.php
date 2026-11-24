@@ -3,7 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Enqueues admin styles and scripts for the plugin's management screens. */
 function calsys_admin_enqueue($hook_suffix) {
     if (strpos($hook_suffix, 'calsys-') !== false) {
         $style_path = plugin_dir_path(CALSYS_PLUGIN_FILE) . 'assets/calendar-system-admin.css';
@@ -116,7 +115,6 @@ function calsys_admin_enqueue($hook_suffix) {
 }
 add_action('admin_enqueue_scripts', 'calsys_admin_enqueue');
 
-/** Registers the calendar dashboard, management pages, and hidden event manager. */
 function calsys_admin_menu() {
     add_menu_page(
         __('CommonCalendar', 'community-calendar-study-rooms'),
@@ -200,7 +198,6 @@ function calsys_hours_input($name, $value, $label) {
         'pattern="(0?[1-9]|1[0-2]):[0-5][0-9] ?[aApP][mM]" data-calsys-hours-input>';
 }
 
-/** Renders one holiday-hours exception row. */
 function calsys_holiday_hours_row($index, $holiday) {
     ?>
     <tr class="calsys-holiday-row">
@@ -213,7 +210,6 @@ function calsys_holiday_hours_row($index, $holiday) {
     <?php
 }
 
-/** Renders the settings page for calendar colors, categories, and booking rules. */
 function calsys_admin_settings_page() {
     calsys_require_staff();
     calsys_admin_notice();
@@ -349,10 +345,21 @@ function calsys_admin_settings_page() {
                 <tr><th scope="row"><?php esc_html_e('Request approval', 'community-calendar-study-rooms'); ?></th>
                     <td><label><input name="room_approval_required" type="checkbox" value="1" <?php checked($settings['room_approval_required']); ?>> <?php esc_html_e('Require staff approval for public room requests', 'community-calendar-study-rooms'); ?></label>
                         <p class="description"><?php esc_html_e('When unchecked, valid public room requests are confirmed immediately.', 'community-calendar-study-rooms'); ?></p></td></tr>
+                <tr><th scope="row"><?php esc_html_e('Room equipment', 'community-calendar-study-rooms'); ?></th>
+                    <td><label><input name="room_equipment_enabled" type="checkbox" value="1" <?php checked($settings['room_equipment_enabled']); ?>> <?php esc_html_e('Allow equipment requests on public and staff room booking forms', 'community-calendar-study-rooms'); ?></label>
+                        <p class="description"><?php esc_html_e('Existing equipment reservations are kept. Event and staff time editors are not affected.', 'community-calendar-study-rooms'); ?></p></td></tr>
             </tbody></table>
             <h3><?php esc_html_e('Weekly opening hours', 'community-calendar-study-rooms'); ?></h3>
             <p class="description"><?php esc_html_e('Choose Open and enter both times using AM or PM, such as 9:00 AM. Choose Unrestricted or Closed for days without specific hours. Public room requests must fit within these hours.', 'community-calendar-study-rooms'); ?></p>
-            <table class="widefat striped" id="calsys-weekly-hours"><thead><tr><th><?php esc_html_e('Day', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Availability', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Opening and closing times', 'community-calendar-study-rooms'); ?></th></tr></thead><tbody>
+            <table class="widefat striped" id="calsys-weekly-hours">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Day', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Availability', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Opening and closing times', 'community-calendar-study-rooms'); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
                 <?php foreach (array(__('Sunday', 'community-calendar-study-rooms'), __('Monday', 'community-calendar-study-rooms'), __('Tuesday', 'community-calendar-study-rooms'), __('Wednesday', 'community-calendar-study-rooms'), __('Thursday', 'community-calendar-study-rooms'), __('Friday', 'community-calendar-study-rooms'), __('Saturday', 'community-calendar-study-rooms')) as $day => $day_label) : $hours = $settings['booking_rules']['weekly_hours'][$day]; ?>
                 <tr><th scope="row"><?php echo esc_html($day_label); ?></th><td><select name="weekly_hours[<?php echo esc_attr($day); ?>][mode]" aria-label="<?php echo esc_attr(sprintf(__('%s availability', 'community-calendar-study-rooms'), $day_label)); ?>">
                     <option value="unrestricted" <?php selected($hours['mode'], 'unrestricted'); ?>><?php esc_html_e('Unrestricted', 'community-calendar-study-rooms'); ?></option>
@@ -363,7 +370,16 @@ function calsys_admin_settings_page() {
             </tbody></table>
             <h3><?php esc_html_e('Holiday and special hours', 'community-calendar-study-rooms'); ?></h3>
             <p class="description"><?php esc_html_e('Special dates override weekly hours. A specific date takes precedence over a yearly exception. Overnight hours are not supported.', 'community-calendar-study-rooms'); ?></p>
-            <table class="widefat striped"><thead><tr><th><?php esc_html_e('Date', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Repeat', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Availability', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Opening and closing times', 'community-calendar-study-rooms'); ?></th><th></th></tr></thead>
+            <table class="widefat striped">
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Date', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Repeat', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Availability', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Opening and closing times', 'community-calendar-study-rooms'); ?></th>
+                        <th></th>
+                    </tr>
+                </thead>
                 <tbody id="calsys-holiday-hours"><?php foreach ($settings['booking_rules']['holiday_hours'] as $index => $holiday) { calsys_holiday_hours_row($index, $holiday); } ?></tbody>
             </table>
             <p><button type="button" class="button" id="calsys-add-holiday"><?php esc_html_e('Add holiday or special date', 'community-calendar-study-rooms'); ?></button></p>
@@ -585,7 +601,92 @@ function calsys_admin_settings_page() {
     <?php
 }
 
-/** Validates and saves calendar settings submitted by an authorized staff user. */
+function calsys_room_request_messages($posted) {
+    $messages = array();
+    foreach (array('submitted_message', 'already_booked_message', 'advance_booking_message') as $key) {
+        $text = $posted[$key] ?? '';
+        if (!is_string($text) || strlen($text) > 500) {
+            return false;
+        }
+        $text = sanitize_text_field($text);
+        if ($text === '') {
+            return false;
+        }
+        $messages[$key] = $text;
+    }
+    return $messages;
+}
+
+function calsys_settings_staff_types($posted_types) {
+    if (count($posted_types) > 20) {
+        return false;
+    }
+    $types = array();
+    foreach ($posted_types as $row) {
+        if (!is_array($row)) {
+            return false;
+        }
+        $raw_label = $row['label'] ?? '';
+        $raw_color = $row['color'] ?? '';
+        $raw_key = $row['key'] ?? '';
+        if (!is_string($raw_label) || !is_string($raw_color) || !is_string($raw_key)) {
+            return false;
+        }
+        $label = sanitize_text_field($raw_label);
+        $color = sanitize_hex_color($raw_color);
+        $key = sanitize_key($raw_key);
+        if ($key === '') {
+            $key = substr(sanitize_key(str_replace('-', '_', sanitize_title($label))), 0, 20);
+        }
+        if ($label === '' || strlen($label) > 60 || !$color || $key === '') {
+            return false;
+        }
+        if (strlen($key) > 20) {
+            return false;
+        }
+        $base_key = $key;
+        $suffix = 2;
+        while (isset($types[$key])) {
+            $suffix_text = '_' . $suffix;
+            $key = substr($base_key, 0, 20 - strlen($suffix_text)) . $suffix_text;
+            $suffix++;
+        }
+        $types[$key] = array('label' => $label, 'color' => $color);
+    }
+
+    return $types ?: false;
+}
+
+function calsys_settings_categories($posted_categories) {
+    if (count($posted_categories) > 40) {
+        return false;
+    }
+    $categories = array();
+    foreach ($posted_categories as $row) {
+        if (!is_array($row) || !is_string($row['label'] ?? null) || !is_string($row['key'] ?? null)) {
+            return false;
+        }
+        $label = sanitize_text_field($row['label']);
+        $color = isset($row['color']) ? sanitize_hex_color($row['color']) : '#1d5f8a';
+        $key = sanitize_key($row['key']);
+        if ($key === '') {
+            $key = substr(sanitize_key(str_replace('-', '_', sanitize_title($label))), 0, 40);
+        }
+        if ($label === '' || strlen($label) > 60 || $key === '') {
+            return false;
+        }
+        $base_key = $key;
+        $suffix = 2;
+        while (isset($categories[$key])) {
+            $suffix_text = '_' . $suffix;
+            $key = substr($base_key, 0, 40 - strlen($suffix_text)) . $suffix_text;
+            $suffix++;
+        }
+        $categories[$key] = array('label' => $label, 'color' => $color);
+    }
+    return $categories ?: false;
+}
+
 function calsys_save_settings() {
     calsys_require_staff();
     check_admin_referer('calsys_save_settings');
@@ -607,76 +708,16 @@ function calsys_save_settings() {
     $posted_types = isset($_POST['staff_types']) && is_array($_POST['staff_types'])
         ? wp_unslash($_POST['staff_types'])
         : array();
-    if (count($posted_types) > 20) {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $types = array();
-    foreach ($posted_types as $row) {
-        if (!is_array($row)) {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-        $raw_label = $row['label'] ?? '';
-        $raw_color = $row['color'] ?? '';
-        $raw_key = $row['key'] ?? '';
-        if (!is_string($raw_label) || !is_string($raw_color) || !is_string($raw_key)) {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-        $label = sanitize_text_field($raw_label);
-        $color = sanitize_hex_color($raw_color);
-        $key = sanitize_key($raw_key);
-        if ($key === '') {
-            $key = substr(sanitize_key(str_replace('-', '_', sanitize_title($label))), 0, 20);
-        }
-        if ($label === '' || strlen($label) > 60 || !$color || $key === '') {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-        if (strlen($key) > 20) {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-        $base_key = $key;
-        $suffix = 2;
-        while (isset($types[$key])) {
-            $suffix_text = '_' . $suffix;
-            $key = substr($base_key, 0, 20 - strlen($suffix_text)) . $suffix_text;
-            $suffix++;
-        }
-        $types[$key] = array('label' => $label, 'color' => $color);
-    }
-
-    if (!$types) {
+    $types = calsys_settings_staff_types($posted_types);
+    if ($types === false) {
         calsys_admin_redirect('calsys-settings', 'settings_invalid');
     }
 
     $posted_categories = isset($_POST['event_categories']) && is_array($_POST['event_categories'])
         ? wp_unslash($_POST['event_categories'])
         : array();
-    if (count($posted_categories) > 40) {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $categories = array();
-    foreach ($posted_categories as $row) {
-        if (!is_array($row) || !is_string($row['label'] ?? null) || !is_string($row['key'] ?? null)) {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-        $label = sanitize_text_field($row['label']);
-        $color = isset($row['color']) ? sanitize_hex_color($row['color']) : '#1d5f8a';
-        $key = sanitize_key($row['key']);
-        if ($key === '') {
-            $key = substr(sanitize_key(str_replace('-', '_', sanitize_title($label))), 0, 40);
-        }
-        if ($label === '' || strlen($label) > 60 || $key === '') {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-        $base_key = $key;
-        $suffix = 2;
-        while (isset($categories[$key])) {
-            $suffix_text = '_' . $suffix;
-            $key = substr($base_key, 0, 40 - strlen($suffix_text)) . $suffix_text;
-            $suffix++;
-        }
-        $categories[$key] = array('label' => $label, 'color' => $color);
-    }
-    if (!$categories) {
+    $categories = calsys_settings_categories($posted_categories);
+    if ($categories === false) {
         calsys_admin_redirect('calsys-settings', 'settings_invalid');
     }
 
@@ -783,33 +824,8 @@ function calsys_save_settings() {
     $posted_room_requests = isset($_POST['room_requests']) && is_array($_POST['room_requests'])
         ? wp_unslash($_POST['room_requests'])
         : array();
-    foreach (array('submitted_message', 'already_booked_message', 'advance_booking_message') as $room_key) {
-        if (isset($posted_room_requests[$room_key]) && !is_scalar($posted_room_requests[$room_key])) {
-            calsys_admin_redirect('calsys-settings', 'settings_invalid');
-        }
-    }
-    $room_request_message = $posted_room_requests['submitted_message'] ?? '';
-    if (!is_string($room_request_message) || strlen($room_request_message) > 500) {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $room_request_message = sanitize_text_field($room_request_message);
-    if ($room_request_message === '') {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $room_already_booked_message = $posted_room_requests['already_booked_message'] ?? '';
-    if (!is_string($room_already_booked_message) || strlen($room_already_booked_message) > 500) {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $room_already_booked_message = sanitize_text_field($room_already_booked_message);
-    if ($room_already_booked_message === '') {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $room_advance_booking_message = $posted_room_requests['advance_booking_message'] ?? '';
-    if (!is_string($room_advance_booking_message) || strlen($room_advance_booking_message) > 500) {
-        calsys_admin_redirect('calsys-settings', 'settings_invalid');
-    }
-    $room_advance_booking_message = sanitize_text_field($room_advance_booking_message);
-    if ($room_advance_booking_message === '') {
+    $room_messages = calsys_room_request_messages($posted_room_requests);
+    if ($room_messages === false) {
         calsys_admin_redirect('calsys-settings', 'settings_invalid');
     }
 
@@ -907,6 +923,7 @@ function calsys_save_settings() {
             'max_advance_months' => $max_advance_months,
         ),
         'room_approval_required' => isset($_POST['room_approval_required']) ? 1 : 0,
+        'room_equipment_enabled' => isset($_POST['room_equipment_enabled']) ? 1 : 0,
         'event_registration' => array(
             'enabled' => isset($posted_registration['enabled']) ? 1 : 0,
             'max_capacity' => $max_capacity,
@@ -932,11 +949,7 @@ function calsys_save_settings() {
             'show_category_labels' => isset($posted_display['show_category_labels']) ? 1 : 0,
             'show_filter_heading' => isset($posted_display['show_filter_heading']) ? 1 : 0,
         ),
-        'room_requests' => array(
-            'submitted_message' => $room_request_message,
-            'already_booked_message' => $room_already_booked_message,
-            'advance_booking_message' => $room_advance_booking_message,
-        ),
+        'room_requests' => $room_messages,
         'notifications' => array(
             'staff_email' => $staff_email,
             'room_request_recipients' => $room_recipients,
@@ -1017,7 +1030,6 @@ function calsys_test_email() {
 }
 add_action('admin_post_calsys_test_email', 'calsys_test_email');
 
-/** Displays a translated admin notice for a recognized action result. */
 function calsys_admin_notice() {
     if (empty($_GET['calsys_notice'])) {
         return;
@@ -1050,6 +1062,7 @@ function calsys_admin_notice() {
         'room_in_use' => __('This room cannot be deleted because it is used by existing bookings or staff calendar entries. Mark it unavailable instead.', 'community-calendar-study-rooms'),
         'equipment_in_use' => __('The quantity cannot be lower than the amount already reserved at the same time.', 'community-calendar-study-rooms'),
         'equipment_conflict' => __('The requested equipment is unavailable for that time or quantity.', 'community-calendar-study-rooms'),
+        'equipment_disabled' => __('Equipment requests are disabled for room bookings. Please reload the form and try again.', 'community-calendar-study-rooms'),
         'settings_saved' => __('Calendar settings saved.', 'community-calendar-study-rooms'),
         'settings_saved_types_in_use' => __('Settings saved. Booking types used by existing entries were kept.', 'community-calendar-study-rooms'),
         'settings_invalid_hours' => __('Settings were not saved. Choose Open or Custom hours and enter valid opening and closing times, or clear the times for closed and unrestricted days. Check special dates for duplicates.', 'community-calendar-study-rooms'),

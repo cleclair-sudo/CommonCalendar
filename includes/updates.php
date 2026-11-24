@@ -79,7 +79,6 @@ function calsys_check_update_package($source, $remote_source, $upgrader, $hook_e
 }
 add_filter('upgrader_source_selection', 'calsys_check_update_package', 10, 4);
 
-/** Shows update-check failures to administrators on WordPress update screens. */
 function calsys_update_error_notice() {
     if (!current_user_can('update_plugins') || !get_site_transient('calsys_update_error')) {
         return;

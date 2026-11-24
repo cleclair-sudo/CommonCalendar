@@ -113,6 +113,7 @@ function wp_mail($to, $subject, $body, $headers = array()) {
 }
 function get_privacy_policy_url() { return ''; }
 function calsys_equipment_fields() { return ''; }
+function calsys_room_equipment_fields() { return ''; }
 function absint($value) { return abs((int) $value); }
 function wp_unslash($value) { return $value; }
 function sanitize_text_field($value) { return trim(strip_tags($value)); }
@@ -128,6 +129,7 @@ function calsys_normalize_room_schedule($weekly, $holidays) { return array('week
 function calsys_action_redirect($frontend, $page, $notice, $skipped = 0) { throw new InitialsRedirect($notice); }
 function calsys_frontend_redirect($notice) { throw new InitialsRedirect($notice); }
 function calsys_posted_equipment() { return array(); }
+function calsys_posted_room_equipment() { return array(); }
 function calsys_parse_datetime($value) {
     if (is_array($value)) { $value = implode('T', $value); }
     return str_replace('T', ' ', $value) . ':00';

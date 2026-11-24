@@ -3,7 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Escapes an iCalendar text value. */
 function calsys_ical_text($value) {
     $value = wp_check_invalid_utf8((string) $value);
     $value = str_replace(array("\r\n", "\r"), "\n", $value);

@@ -28,7 +28,7 @@ function calsys_validate_staff_initials($value) {
 }
 function sanitize_textarea_field($value) { return $value; }
 function current_time($format) { return '2026-11-11 12:00:00'; }
-function calsys_posted_equipment() { return array(); }
+function calsys_posted_room_equipment() { return $GLOBALS['posted_equipment']; }
 function calsys_valid_booking_input() {
     return array('room_id' => 1, 'room_name' => 'Room', 'name' => 'Patron', 'email' => 'test@example.invalid',
         'date' => '2026-12-01', 'start' => '10:00:00', 'end' => '11:00:00');
@@ -46,8 +46,18 @@ require __DIR__ . '/../includes/room-actions.php';
 
 $wpdb = new BookingDatabase();
 $staff_authorized = true;
+$posted_equipment = array();
 $conflict = true;
 $_POST = array('room_id' => '1', 'staff_initials' => 'AB');
+foreach (array(array(false, 'invalid_room_request'), array('disabled', 'equipment_disabled')) as $case) {
+    list($posted_equipment, $notice) = $case;
+    foreach (array(false, true) as $staff_booking) {
+        try { calsys_save_booking($staff_booking); expect(false, 'Expected equipment redirect'); } catch (BookingRedirect $result) {
+            expect($result->notice === $notice && !$wpdb->inserted, 'Invalid or disabled equipment must not save a booking');
+        }
+    }
+}
+$posted_equipment = array();
 try { calsys_save_booking(true); expect(false, 'Expected staff conflict redirect'); } catch (BookingRedirect $result) {
     expect($result->notice === 'room_conflict' && !$wpdb->inserted, 'Staff conflict must require acknowledgment');
 }

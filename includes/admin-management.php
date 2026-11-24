@@ -3,22 +3,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Stops requests from users without calendar-management permission. */
 function calsys_require_staff() {
     if (!current_user_can('manage_calendar_system')) {
         wp_die(esc_html__('You do not have permission to manage the calendar.', 'community-calendar-study-rooms'));
     }
 }
 
-/** Renders the dashboard overview, pending room requests, and upcoming activity. */
-function calsys_admin_home_page() {
+function calsys_dashboard_data() {
     global $wpdb;
-    calsys_require_staff();
-    calsys_admin_notice();
 
     $now = current_time('mysql');
     $today = current_time('Y-m-d');
-    $tomorrow = DateTimeImmutable::createFromFormat('!Y-m-d', $today, wp_timezone())->modify('+1 day')->format('Y-m-d H:i:s');
+    // Use local midnight rather than adding 24 hours, which can cross a DST change.
+    $tomorrow = DateTimeImmutable::createFromFormat('!Y-m-d', $today, wp_timezone())
+        ->modify('+1 day')
+        ->format('Y-m-d H:i:s');
     $events_table = calsys_table('events');
     $bookings_table = calsys_table('bookings');
     $rooms_table = calsys_table('rooms');
@@ -68,34 +67,45 @@ function calsys_admin_home_page() {
     if ($upcoming_events_count === false || $pending_requests_count === false || $active_rooms_count === false ||
         $upcoming_staff_count === false || $upcoming_events === null || $feed_bookings === null || $upcoming_staff === null) {
         error_log('CommonCalendar: unable to load admin dashboard: ' . $wpdb->last_error);
-        echo '<div class="wrap"><h1>' . esc_html__('CommonCalendar', 'community-calendar-study-rooms') . '</h1><div class="notice notice-error"><p>' .
-            esc_html__('The dashboard could not load calendar data. Please check the site error log.', 'community-calendar-study-rooms') .
-            '</p></div></div>';
-        return;
+        return false;
     }
-    $upcoming_events_count = (int) $upcoming_events_count;
-    $pending_requests_count = (int) $pending_requests_count;
-    $active_rooms_count = (int) $active_rooms_count;
-    $upcoming_staff_count = (int) $upcoming_staff_count;
 
+    return array(
+        'events_count' => (int) $upcoming_events_count,
+        'requests_count' => (int) $pending_requests_count,
+        'rooms_count' => (int) $active_rooms_count,
+        'staff_count' => (int) $upcoming_staff_count,
+        'events' => $upcoming_events,
+        'bookings' => $feed_bookings,
+        'staff' => $upcoming_staff,
+    );
+}
+
+function calsys_dashboard_feed($bookings, $events, $staff) {
     $activity_feed = array();
-    foreach ($feed_bookings as $booking) {
+    foreach ($bookings as $booking) {
         $starts_at = $booking->booking_date . ' ' . $booking->starts_at;
+        $is_pending = $booking->status === 'pending';
+        $kind = $is_pending
+            ? __('Room request', 'community-calendar-study-rooms')
+            : __('Room booking', 'community-calendar-study-rooms');
+        $page = $is_pending ? 'calsys-room-approvals' : 'calsys-rooms';
+        $detail = mysql2date(get_option('date_format'), $booking->booking_date) . ' · ' .
+            mysql2date('g:i A', $starts_at) . '–' .
+            mysql2date('g:i A', $booking->booking_date . ' ' . $booking->ends_at);
+        if ($is_pending && $booking->request_reason !== '') {
+            $detail .= ' · ' . $booking->request_reason;
+        }
         $activity_feed[] = array(
             'sort_at' => $starts_at,
-            'kind' => $booking->status === 'pending' ? __('Room request', 'community-calendar-study-rooms') : __('Room booking', 'community-calendar-study-rooms'),
+            'kind' => $kind,
             'title' => $booking->room_name,
-            'detail' => mysql2date(get_option('date_format'), $booking->booking_date) . ' · ' .
-                mysql2date('g:i A', $starts_at) . '–' .
-                mysql2date('g:i A', $booking->booking_date . ' ' . $booking->ends_at) .
-                ($booking->status === 'pending' && $booking->request_reason !== ''
-                    ? ' · ' . $booking->request_reason
-                    : ''),
+            'detail' => $detail,
             'status' => $booking->status,
-            'url' => admin_url('admin.php?page=' . ($booking->status === 'pending' ? 'calsys-room-approvals' : 'calsys-rooms')),
+            'url' => admin_url('admin.php?page=' . $page),
         );
     }
-    foreach ($upcoming_events as $event) {
+    foreach ($events as $event) {
         $activity_feed[] = array(
             'sort_at' => $event->starts_at,
             'kind' => __('Event', 'community-calendar-study-rooms'),
@@ -106,7 +116,7 @@ function calsys_admin_home_page() {
         );
     }
     $staff_types = calsys_staff_types();
-    foreach ($upcoming_staff as $entry) {
+    foreach ($staff as $entry) {
         $activity_feed[] = array(
             'sort_at' => $entry->starts_at,
             'kind' => __('Staff time', 'community-calendar-study-rooms'),
@@ -120,7 +130,50 @@ function calsys_admin_home_page() {
     usort($activity_feed, function ($left, $right) {
         return strcmp($left['sort_at'], $right['sort_at']);
     });
+    return $activity_feed;
+}
 
+function calsys_render_dashboard_feed($activity_feed, $calendar_url) {
+    ?>
+    <section class="calsys-admin-card calsys-admin-feed-card">
+        <div class="calsys-admin-card-heading">
+            <div>
+                <h2><?php esc_html_e('Upcoming', 'community-calendar-study-rooms'); ?></h2>
+                <p><?php esc_html_e('Events, room bookings, and staff time still happening today.', 'community-calendar-study-rooms'); ?></p>
+            </div>
+            <a class="button" href="<?php echo esc_url($calendar_url . 'calsys-rooms'); ?>"><?php esc_html_e('Manage rooms', 'community-calendar-study-rooms'); ?></a>
+        </div>
+        <?php if (!$activity_feed) : ?>
+            <p class="calsys-admin-empty"><?php esc_html_e('There are no remaining calendar items today.', 'community-calendar-study-rooms'); ?></p>
+        <?php else : ?>
+            <ul class="calsys-admin-activity-list calsys-admin-feed">
+                <?php foreach ($activity_feed as $item) : ?>
+                    <li>
+                        <span class="calsys-admin-feed-kind<?php echo $item['status'] === 'pending' ? ' is-pending' : ''; ?>">
+                            <?php echo esc_html($item['kind']); ?>
+                        </span>
+                        <a href="<?php echo esc_url($item['url']); ?>"><strong><?php echo esc_html($item['title']); ?></strong></a>
+                        <span><?php echo esc_html($item['detail']); ?></span>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
+    </section>
+    <?php
+}
+
+function calsys_admin_home_page() {
+    calsys_require_staff();
+    calsys_admin_notice();
+    $data = calsys_dashboard_data();
+    if ($data === false) {
+        echo '<div class="wrap"><h1>' . esc_html__('CommonCalendar', 'community-calendar-study-rooms') . '</h1><div class="notice notice-error"><p>' .
+            esc_html__('The dashboard could not load calendar data. Please check the site error log.', 'community-calendar-study-rooms') .
+            '</p></div></div>';
+        return;
+    }
+
+    $activity_feed = calsys_dashboard_feed($data['bookings'], $data['events'], $data['staff']);
     $calendar_url = admin_url('admin.php?page=');
     ?>
     <div class="wrap calsys-admin-page calsys-admin-home">
@@ -130,46 +183,27 @@ function calsys_admin_home_page() {
         <div class="calsys-admin-stats" aria-label="<?php esc_attr_e('Calendar overview', 'community-calendar-study-rooms'); ?>">
             <a class="calsys-admin-stat" href="<?php echo esc_url($calendar_url . 'calsys-rooms'); ?>">
                 <span class="calsys-admin-stat-label"><?php esc_html_e('Upcoming events', 'community-calendar-study-rooms'); ?></span>
-                <strong><?php echo esc_html(number_format_i18n($upcoming_events_count)); ?></strong>
+                <strong><?php echo esc_html(number_format_i18n($data['events_count'])); ?></strong>
                 <span><?php esc_html_e('Published events', 'community-calendar-study-rooms'); ?></span>
             </a>
             <a class="calsys-admin-stat is-attention" href="<?php echo esc_url($calendar_url . 'calsys-room-approvals'); ?>">
                 <span class="calsys-admin-stat-label"><?php esc_html_e('Pending room requests', 'community-calendar-study-rooms'); ?></span>
-                <strong><?php echo esc_html(number_format_i18n($pending_requests_count)); ?></strong>
+                <strong><?php echo esc_html(number_format_i18n($data['requests_count'])); ?></strong>
                 <span><?php esc_html_e('Awaiting review', 'community-calendar-study-rooms'); ?></span>
             </a>
             <a class="calsys-admin-stat" href="<?php echo esc_url($calendar_url . 'calsys-rooms'); ?>">
                 <span class="calsys-admin-stat-label"><?php esc_html_e('Active rooms', 'community-calendar-study-rooms'); ?></span>
-                <strong><?php echo esc_html(number_format_i18n($active_rooms_count)); ?></strong>
+                <strong><?php echo esc_html(number_format_i18n($data['rooms_count'])); ?></strong>
                 <span><?php esc_html_e('Available to book', 'community-calendar-study-rooms'); ?></span>
             </a>
             <a class="calsys-admin-stat" href="<?php echo esc_url($calendar_url . 'calsys-staff-calendar'); ?>">
                 <span class="calsys-admin-stat-label"><?php esc_html_e('Upcoming staff entries', 'community-calendar-study-rooms'); ?></span>
-                <strong><?php echo esc_html(number_format_i18n($upcoming_staff_count)); ?></strong>
+                <strong><?php echo esc_html(number_format_i18n($data['staff_count'])); ?></strong>
                 <span><?php esc_html_e('Meetings and time off', 'community-calendar-study-rooms'); ?></span>
             </a>
         </div>
 
-        <section class="calsys-admin-card calsys-admin-feed-card">
-            <div class="calsys-admin-card-heading">
-                <div><h2><?php esc_html_e('Upcoming', 'community-calendar-study-rooms'); ?></h2>
-                    <p><?php esc_html_e('Events, room bookings, and staff time still happening today.', 'community-calendar-study-rooms'); ?></p></div>
-                <a class="button" href="<?php echo esc_url($calendar_url . 'calsys-rooms'); ?>"><?php esc_html_e('Manage rooms', 'community-calendar-study-rooms'); ?></a>
-            </div>
-            <?php if ($activity_feed) : ?>
-                <ul class="calsys-admin-activity-list calsys-admin-feed">
-                    <?php foreach ($activity_feed as $item) : ?>
-                        <li>
-                            <span class="calsys-admin-feed-kind<?php echo $item['status'] === 'pending' ? ' is-pending' : ''; ?>"><?php echo esc_html($item['kind']); ?></span>
-                            <a href="<?php echo esc_url($item['url']); ?>"><strong><?php echo esc_html($item['title']); ?></strong></a>
-                            <span><?php echo esc_html($item['detail']); ?></span>
-                        </li>
-                    <?php endforeach; ?>
-                </ul>
-            <?php else : ?>
-                <p class="calsys-admin-empty"><?php esc_html_e('There are no remaining calendar items today.', 'community-calendar-study-rooms'); ?></p>
-            <?php endif; ?>
-        </section>
+        <?php calsys_render_dashboard_feed($activity_feed, $calendar_url); ?>
 
         <section class="calsys-admin-card calsys-admin-shortcuts">
             <h2><?php esc_html_e('Quick links', 'community-calendar-study-rooms'); ?></h2>
@@ -183,7 +217,6 @@ function calsys_admin_home_page() {
     <?php
 }
 
-/** Lists pending room requests with the existing approval actions. */
 function calsys_admin_room_approvals_page() {
     global $wpdb;
     calsys_require_staff();
@@ -227,10 +260,27 @@ function calsys_admin_room_approvals_page() {
                             </div>
                         </div>
                         <dl class="calsys-review-details">
-                            <div><dt><?php esc_html_e('Requested by', 'community-calendar-study-rooms'); ?></dt><dd><?php echo esc_html($request->requester_name); ?><br><a href="<?php echo esc_url('mailto:' . $request->requester_email); ?>"><?php echo esc_html($request->requester_email); ?></a></dd></div>
-                            <div><dt><?php esc_html_e('Reason', 'community-calendar-study-rooms'); ?></dt><dd><?php echo $request->request_reason !== '' ? nl2br(esc_html($request->request_reason)) : '&mdash;'; ?></dd></div>
+                            <div>
+                                <dt><?php esc_html_e('Requested by', 'community-calendar-study-rooms'); ?></dt>
+                                <dd><?php echo esc_html($request->requester_name); ?><br><a href="<?php echo esc_url('mailto:' . $request->requester_email); ?>"><?php echo esc_html($request->requester_email); ?></a></dd>
+                            </div>
+                            <div>
+                                <dt><?php esc_html_e('Reason', 'community-calendar-study-rooms'); ?></dt>
+                                <dd><?php echo $request->request_reason !== '' ? nl2br(esc_html($request->request_reason)) : '&mdash;'; ?></dd>
+                            </div>
                             <?php $equipment_description = calsys_equipment_description('room', $request->id); ?>
-                            <div><dt><?php esc_html_e('Equipment', 'community-calendar-study-rooms'); ?></dt><dd><?php echo $equipment_description === false ? esc_html__('Could not load equipment.', 'community-calendar-study-rooms') : ($equipment_description !== '' ? esc_html($equipment_description) : '&mdash;'); ?></dd></div>
+                            <div>
+                                <dt><?php esc_html_e('Equipment', 'community-calendar-study-rooms'); ?></dt>
+                                <dd>
+                                    <?php if ($equipment_description === false) : ?>
+                                        <?php esc_html_e('Could not load equipment.', 'community-calendar-study-rooms'); ?>
+                                    <?php elseif ($equipment_description !== '') : ?>
+                                        <?php echo esc_html($equipment_description); ?>
+                                    <?php else : ?>
+                                        &mdash;
+                                    <?php endif; ?>
+                                </dd>
+                            </div>
                         </dl>
                     </li>
                 <?php endforeach; ?>
@@ -240,7 +290,6 @@ function calsys_admin_room_approvals_page() {
     <?php
 }
 
-/** Lists upcoming events or displays the registrations for the selected event. */
 function calsys_admin_event_registrations_page() {
     global $wpdb;
     calsys_require_staff();
@@ -316,7 +365,7 @@ function calsys_admin_event_registrations_page() {
     <?php
 }
 
-/** Renders the hidden event-management screen and registration records. */
+// This editor is linked from the dashboard rather than the main menu.
 function calsys_admin_events_page() {
     global $wpdb;
     calsys_require_staff();
@@ -336,8 +385,8 @@ function calsys_admin_events_page() {
         "SELECT room_id FROM " . calsys_table('bookings') . " WHERE source_type = 'event' AND source_id = %d ORDER BY id ASC LIMIT 1",
         $editing->id
     )) : 0;
-    $editing_registration_fields = $editing ? calsys_decode_registration_fields($editing->registration_fields ?? '') : array();
-    $editing_registration_recipients = $editing ? calsys_decode_registration_recipients($editing->registration_recipients ?? '') : array();
+    $saved_fields = $editing ? calsys_decode_registration_fields($editing->registration_fields ?? '') : array();
+    $saved_recipients = $editing ? calsys_decode_registration_recipients($editing->registration_recipients ?? '') : array();
     $registration_defaults = calsys_get_settings()['event_registration'];
     $events = $wpdb->get_results(
         "SELECT e.*, (SELECT COUNT(*) FROM " . calsys_table('registrations') . " r WHERE r.event_id = e.id) AS registration_count
@@ -371,7 +420,11 @@ function calsys_admin_events_page() {
             <?php echo calsys_datetime_fields('ends_at', __('Ends', 'community-calendar-study-rooms'), $editing ? $editing->ends_at : ''); ?>
             <?php if ($editing && $editing->recurrence_group) : ?>
                 <p><label for="calsys-event-scope"><?php esc_html_e('Apply changes to', 'community-calendar-study-rooms'); ?></label><br>
-                    <select id="calsys-event-scope" name="event_scope"><option value="one"><?php esc_html_e('This event only', 'community-calendar-study-rooms'); ?></option><option value="future"><?php esc_html_e('This and future recurring events', 'community-calendar-study-rooms'); ?></option><option value="all"><?php esc_html_e('All recurring events', 'community-calendar-study-rooms'); ?></option></select>
+                    <select id="calsys-event-scope" name="event_scope">
+                        <option value="one"><?php esc_html_e('This event only', 'community-calendar-study-rooms'); ?></option>
+                        <option value="future"><?php esc_html_e('This and future recurring events', 'community-calendar-study-rooms'); ?></option>
+                        <option value="all"><?php esc_html_e('All recurring events', 'community-calendar-study-rooms'); ?></option>
+                    </select>
                     <span class="description"><?php esc_html_e('All shown fields, including room and equipment, replace the values for selected events. Dates shift by the same amount; registrations stay with each event.', 'community-calendar-study-rooms'); ?></span></p>
             <?php endif; ?>
             <p><label for="calsys-event-capacity"><?php esc_html_e('Event registration limit (0 uses the global setting)', 'community-calendar-study-rooms'); ?></label><br>
@@ -383,15 +436,24 @@ function calsys_admin_events_page() {
                     <option value="published" <?php selected($editing ? $editing->status : 'draft', 'published'); ?>><?php esc_html_e('Published', 'community-calendar-study-rooms'); ?></option>
                 </select></p>
             <p><label for="calsys-event-category"><?php esc_html_e('Category', 'community-calendar-study-rooms'); ?></label><br>
-                <select id="calsys-event-category" name="category"><?php foreach ($categories as $key => $label) : ?><option value="<?php echo esc_attr($key); ?>" <?php selected($editing ? $editing->category : 'adult', $key); ?>><?php echo esc_html($label); ?></option><?php endforeach; ?></select></p>
+                <select id="calsys-event-category" name="category">
+                    <?php foreach ($categories as $key => $label) : ?>
+                        <option value="<?php echo esc_attr($key); ?>" <?php selected($editing ? $editing->category : 'adult', $key); ?>><?php echo esc_html($label); ?></option>
+                    <?php endforeach; ?>
+                </select></p>
             <?php echo calsys_event_series_field($editing->series_id ?? 0); ?>
             <?php echo calsys_event_registration_editor(
                 $editing ? !empty($editing->registration_enabled) : !empty($registration_defaults['enabled_by_default']),
-                $editing ? $editing_registration_fields : $registration_defaults['default_fields'],
-                $editing_registration_recipients
+                $editing ? $saved_fields : $registration_defaults['default_fields'],
+                $saved_recipients
             ); ?>
             <p><label for="calsys-event-room"><?php esc_html_e('Room (optional)', 'community-calendar-study-rooms'); ?></label><br>
-                <select id="calsys-event-room" name="room_id"><option value=""><?php esc_html_e('No room reservation', 'community-calendar-study-rooms'); ?></option><?php foreach ($rooms as $room) : ?><option value="<?php echo esc_attr($room->id); ?>" <?php selected($editing_room_id, (int) $room->id); ?>><?php echo esc_html(calsys_room_option_label($room)); ?></option><?php endforeach; ?></select>
+                <select id="calsys-event-room" name="room_id">
+                    <option value=""><?php esc_html_e('No room reservation', 'community-calendar-study-rooms'); ?></option>
+                    <?php foreach ($rooms as $room) : ?>
+                        <option value="<?php echo esc_attr($room->id); ?>" <?php selected($editing_room_id, (int) $room->id); ?>><?php echo esc_html(calsys_room_option_label($room)); ?></option>
+                    <?php endforeach; ?>
+                </select>
                 <?php if (!$rooms) : ?><span class="description"><?php esc_html_e('Add a room in Settings before reserving one for an event.', 'community-calendar-study-rooms'); ?></span><?php endif; ?></p>
             <?php
             $editing_equipment = $editing ? calsys_equipment_for_source('event', $editing->id) : array();
@@ -403,10 +465,7 @@ function calsys_admin_events_page() {
             <?php if (!$editing) : ?>
                 <p><label><input name="recurring" type="checkbox" value="1" data-calsys-toggle-recurrence> <?php esc_html_e('Repeat this event', 'community-calendar-study-rooms'); ?></label></p>
                 <p data-calsys-register-recurrences hidden><label><input name="register_all_recurrences" type="checkbox" value="1"> <?php esc_html_e('Let attendees register for all recurring events', 'community-calendar-study-rooms'); ?></label></p>
-                <p data-calsys-recurrence-field hidden><label><?php esc_html_e('Repeat', 'community-calendar-study-rooms'); ?><select name="recurrence_frequency"><option value="daily"><?php esc_html_e('Daily', 'community-calendar-study-rooms'); ?></option><option value="weekly"><?php esc_html_e('Weekly', 'community-calendar-study-rooms'); ?></option><option value="monthly"><?php esc_html_e('Monthly', 'community-calendar-study-rooms'); ?></option></select></label></p>
-                <p data-calsys-recurrence-field hidden><label><?php esc_html_e('Stop repeating by', 'community-calendar-study-rooms'); ?><select name="recurrence_end_type" data-calsys-recurrence-end><option value="count"><?php esc_html_e('Number of occurrences', 'community-calendar-study-rooms'); ?></option><option value="date"><?php esc_html_e('End date', 'community-calendar-study-rooms'); ?></option></select></label></p>
-                <p data-calsys-recurrence-field hidden data-calsys-occurrences><label><?php esc_html_e('Occurrences (maximum 100)', 'community-calendar-study-rooms'); ?><input name="recurrence_count" type="number" min="2" max="100" value="10"></label></p>
-                <p data-calsys-recurrence-field hidden data-calsys-end-date><label><?php esc_html_e('Repeat through', 'community-calendar-study-rooms'); ?><input name="recurrence_until" type="date"></label></p>
+                <?php echo calsys_recurrence_fields(); ?>
             <?php elseif (!empty($editing->recurrence_group)) : ?>
                 <p><label><input name="register_all_recurrences" type="checkbox" value="1" <?php checked(!empty($editing->register_all_recurrences)); ?>> <?php esc_html_e('Let attendees register for all recurring events', 'community-calendar-study-rooms'); ?></label></p>
             <?php endif; ?>
@@ -416,7 +475,17 @@ function calsys_admin_events_page() {
 
         <h2><?php esc_html_e('All events', 'community-calendar-study-rooms'); ?></h2>
         <table class="widefat striped">
-            <thead><tr><th><?php esc_html_e('Event', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Date', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Category', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Staff initials', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Registrations', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Visibility', 'community-calendar-study-rooms'); ?></th><th></th></tr></thead>
+            <thead>
+                <tr>
+                    <th><?php esc_html_e('Event', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Date', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Category', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Staff initials', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Registrations', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Visibility', 'community-calendar-study-rooms'); ?></th>
+                    <th></th>
+                </tr>
+            </thead>
             <tbody>
             <?php if ($events) : foreach ($events as $event) : ?>
                 <?php $effective_capacity = calsys_event_capacity($event->capacity); ?>
@@ -468,12 +537,20 @@ function calsys_admin_events_page() {
     <?php
 }
 
-/** Renders registration records and saved custom-field responses. */
 function calsys_admin_registration_table($registrations, $kind = 'registration') {
     ?>
     <div class="calsys-registration-table-scroll">
             <table class="widefat striped">
-                <thead><tr><th><?php esc_html_e('Name', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Email', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Registration details', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Reminder', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Registered', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Actions', 'community-calendar-study-rooms'); ?></th></tr></thead>
+                <thead>
+                    <tr>
+                        <th><?php esc_html_e('Name', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Email', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Registration details', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Reminder', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Registered', 'community-calendar-study-rooms'); ?></th>
+                        <th><?php esc_html_e('Actions', 'community-calendar-study-rooms'); ?></th>
+                    </tr>
+                </thead>
                 <tbody>
                 <?php if ($registrations) : foreach ($registrations as $registration) : ?>
                     <tr>
@@ -517,7 +594,6 @@ function calsys_admin_registration_table($registrations, $kind = 'registration')
     <?php
 }
 
-/** Renders room creation, editing, availability, and directory controls in Settings. */
 function calsys_admin_rooms_settings_panel() {
     global $wpdb;
     calsys_require_staff();
@@ -565,7 +641,14 @@ function calsys_admin_rooms_settings_panel() {
             <div>
                 <h3><?php esc_html_e('Room directory', 'community-calendar-study-rooms'); ?></h3>
                 <table class="widefat striped">
-                    <thead><tr><th><?php esc_html_e('Room', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Capacity', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Status', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Actions', 'community-calendar-study-rooms'); ?></th></tr></thead>
+                    <thead>
+                        <tr>
+                            <th><?php esc_html_e('Room', 'community-calendar-study-rooms'); ?></th>
+                            <th><?php esc_html_e('Capacity', 'community-calendar-study-rooms'); ?></th>
+                            <th><?php esc_html_e('Status', 'community-calendar-study-rooms'); ?></th>
+                            <th><?php esc_html_e('Actions', 'community-calendar-study-rooms'); ?></th>
+                        </tr>
+                    </thead>
                     <tbody>
                     <?php if ($rooms) : foreach ($rooms as $room) : ?>
                         <tr>
@@ -593,7 +676,6 @@ function calsys_admin_rooms_settings_panel() {
     <?php
 }
 
-/** Deletes an unused room after checking that no booking or staff entry references it. */
 function calsys_delete_room() {
     calsys_require_staff();
     $room_id = absint($_POST['room_id'] ?? 0);
@@ -631,7 +713,6 @@ function calsys_delete_room() {
 }
 add_action('admin_post_calsys_delete_room', 'calsys_delete_room');
 
-/** Renders room management, the booking calendar, and request approval controls. */
 function calsys_admin_rooms_page() {
     global $wpdb;
     calsys_require_staff();
@@ -746,7 +827,7 @@ function calsys_admin_rooms_page() {
             <p><label for="calsys-booking-start"><?php esc_html_e('Start time', 'community-calendar-study-rooms'); ?></label><br><select id="calsys-booking-start" name="starts_at" data-calsys-room-time required><?php echo calsys_room_time_options(0, 1); ?></select></p>
             <p><label for="calsys-booking-end"><?php esc_html_e('End time', 'community-calendar-study-rooms'); ?></label><br><select id="calsys-booking-end" name="ends_at" data-calsys-room-time required><?php echo calsys_room_time_options(0, 1); ?></select></p>
             <?php echo calsys_room_availability_messages(true); ?>
-            <div class="calsys-form-wide"><?php echo calsys_equipment_fields(); ?></div>
+            <div class="calsys-form-wide"><?php echo calsys_room_equipment_fields(); ?></div>
             <?php submit_button(__('Confirm staff booking', 'community-calendar-study-rooms')); ?>
         </form>
         </section>
@@ -754,7 +835,17 @@ function calsys_admin_rooms_page() {
         <section class="calsys-admin-card">
         <div class="calsys-admin-card-heading"><div><h2><?php esc_html_e('Requests and bookings', 'community-calendar-study-rooms'); ?></h2><p><?php esc_html_e('Pending requests are listed first; upcoming reservations follow.', 'community-calendar-study-rooms'); ?></p></div></div>
         <table class="widefat striped">
-            <thead><tr><th><?php esc_html_e('Room', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Patron', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Reason', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Date and time', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Staff initials', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Status', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Actions', 'community-calendar-study-rooms'); ?></th></tr></thead>
+            <thead>
+                <tr>
+                    <th><?php esc_html_e('Room', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Patron', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Reason', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Date and time', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Staff initials', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Status', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Actions', 'community-calendar-study-rooms'); ?></th>
+                </tr>
+            </thead>
             <tbody>
             <?php if ($bookings) : foreach ($bookings as $booking) : ?>
                 <tr>
@@ -780,7 +871,6 @@ function calsys_admin_rooms_page() {
     <?php
 }
 
-/** Renders the staff schedule calendar, entry form, and upcoming staff entries. */
 function calsys_admin_staff_calendar_page() {
     global $wpdb;
     calsys_require_staff();
@@ -833,7 +923,15 @@ function calsys_admin_staff_calendar_page() {
         <section class="calsys-admin-card">
         <div class="calsys-admin-card-heading"><div><h2><?php esc_html_e('Upcoming entries', 'community-calendar-study-rooms'); ?></h2><p><?php esc_html_e('Entries matching the selected types, ordered by start time.', 'community-calendar-study-rooms'); ?></p></div></div>
         <table class="widefat striped">
-            <thead><tr><th><?php esc_html_e('Entry', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Type', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('When', 'community-calendar-study-rooms'); ?></th><th><?php esc_html_e('Staff initials', 'community-calendar-study-rooms'); ?></th><th></th></tr></thead>
+            <thead>
+                <tr>
+                    <th><?php esc_html_e('Entry', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Type', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('When', 'community-calendar-study-rooms'); ?></th>
+                    <th><?php esc_html_e('Staff initials', 'community-calendar-study-rooms'); ?></th>
+                    <th></th>
+                </tr>
+            </thead>
             <tbody>
             <?php if ($entries) : foreach ($entries as $entry) : ?>
                 <tr>
@@ -871,7 +969,6 @@ function calsys_admin_staff_calendar_page() {
     <?php
 }
 
-/** Validates and saves a staff schedule entry and its optional room reservation. */
 function calsys_save_staff_entry($frontend = false) {
     calsys_require_staff();
     check_admin_referer($frontend ? 'calsys_front_save_staff_entry' : 'calsys_save_staff_entry');
@@ -971,13 +1068,11 @@ function calsys_save_staff_entry($frontend = false) {
 }
 add_action('admin_post_calsys_save_staff_entry', 'calsys_save_staff_entry');
 
-/** Handles the staff-entry save action submitted from a public calendar page. */
 function calsys_front_save_staff_entry() {
     calsys_save_staff_entry(true);
 }
 add_action('admin_post_calsys_front_save_staff_entry', 'calsys_front_save_staff_entry');
 
-/** Deletes a staff schedule entry and any room reservation linked to it. */
 function calsys_delete_staff_entry() {
     calsys_require_staff();
     $frontend = !empty($_POST['calsys_frontend']);

@@ -3,7 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Registers the selected event and any eligible related events. */
 function calsys_register_event() {
     check_admin_referer('calsys_register_event');
     global $wpdb;
@@ -295,7 +294,6 @@ function calsys_register_one_event($event_id, $anchor, $name, $email, $event_fie
     return $result;
 }
 
-/** Validates attendee answers against an event's custom registration fields. */
 function calsys_validate_registration_answers($fields, $raw_answers) {
     if (!is_array($raw_answers)) {
         return false;

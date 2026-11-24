@@ -23,7 +23,6 @@ function calsys_parse_datetime($value) {
     return $date->format('Y-m-d H:i:s');
 }
 
-/** Checks a same-day time range against a public booking duration limit. */
 function calsys_room_duration_exceeds_limit($start, $end, $limit) {
     if (!$limit || !is_string($start) || !is_string($end) ||
         !preg_match('/^(?:[01]\d|2[0-3]):[0-5]\d$/', $start) ||
@@ -34,7 +33,7 @@ function calsys_room_duration_exceeds_limit($start, $end, $limit) {
         ((int) substr($start, 0, 2) * 60 + (int) substr($start, 3, 2)) > $limit;
 }
 
-/** Checks if a booking date exceeds the max advance months limit for public users. Returns false if allowed, true if exceeds limit. */
+/** The booking window runs from the first of this month through the last allowed month. */
 function calsys_booking_exceeds_advance_limit($booking_date, $max_advance_months) {
     if (!$max_advance_months || !is_string($booking_date) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $booking_date)) {
         return false;
@@ -48,7 +47,7 @@ function calsys_booking_exceeds_advance_limit($booking_date, $max_advance_months
     return $booking_dt > $max_date;
 }
 
-/** Validates room, patron, date, and time values against booking rules. Returns array on success, error code string on failure. */
+/** Returns the booking details or an error code. */
 function calsys_valid_booking_input($room_id, $name, $email, $date, $start, $end, $staff_booking = false) {
     $room = absint($room_id);
     $name = sanitize_text_field(wp_unslash($name));
@@ -148,7 +147,7 @@ function calsys_booking_conflict($room_id, $date, $start, $end, $exclude_id = 0)
     return (int) $conflicts > 0;
 }
 
-/** Checks if a room has a confirmed booking (approved only, not pending requests) for the given time. */
+/** Checks approved bookings, excluding pending requests. */
 function calsys_has_confirmed_booking_conflict($room_id, $date, $start, $end, $exclude_id = 0) {
     global $wpdb;
     $table = calsys_table('bookings');

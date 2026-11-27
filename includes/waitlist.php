@@ -46,7 +46,6 @@ function calsys_promote_waitlist_locked($event) {
     return $promoted;
 }
 
-/** Notifies people whose waitlist places were confirmed. */
 function calsys_notify_promoted_waitlist($event, $promoted) {
     $all_sent = true;
     foreach ($promoted as $person) {
@@ -68,7 +67,6 @@ function calsys_notify_promoted_waitlist($event, $promoted) {
     return $all_sent;
 }
 
-/** Promotes eligible waitlisted attendees after a capacity or event change. */
 function calsys_promote_event_waitlist($event_id) {
     global $wpdb;
     if ($wpdb->query('START TRANSACTION') === false) {

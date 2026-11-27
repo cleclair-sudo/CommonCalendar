@@ -1,4 +1,3 @@
-/* Initializes interactive public and staff calendar controls. */
 (function () {
     'use strict';
 
@@ -69,7 +68,6 @@
         printDocument.head.appendChild(link);
     });
 
-    // Sets a named form control when it is present in the form.
     function setValue(form, name, value) {
         var field = form.elements.namedItem(name);
         if (!field && (name === 'starts_at' || name === 'ends_at')) {
@@ -98,7 +96,6 @@
         }
     }
 
-    // Restores saved equipment quantities when opening an existing entry.
     function setEquipment(form, encoded) {
         var quantities;
         try {
@@ -232,7 +229,6 @@
         });
     }
 
-    // Updates an event form's selected image and its visible preview.
     function updateEventImage(form, imageId, imageUrl, imageAlt) {
         var imageField = form.querySelector('[data-calsys-event-image-id]');
         var preview = form.querySelector('[data-calsys-event-image-preview]');
@@ -256,43 +252,44 @@
         }
     }
 
-    // Synchronizes registration, room, and recurrence controls with their toggles.
-    function updateFormControls(form) {
-        var publicEventToggle = form.querySelector('[data-calsys-toggle-public-event]');
-        if (publicEventToggle) {
-            var publicEventFields = form.querySelector('[data-calsys-public-event-fields]');
-            var privateBookingFields = form.querySelectorAll('[data-calsys-private-booking-field]');
-            var publicEvent = publicEventToggle.checked;
-            if (publicEventFields) {
-                publicEventFields.hidden = !publicEvent;
-                var publicInputs = publicEventFields.querySelectorAll('input, select, textarea, button');
-                for (var publicIndex = 0; publicIndex < publicInputs.length; publicIndex++) {
-                    publicInputs[publicIndex].disabled = !publicEvent;
-                }
-            }
-            for (var privateIndex = 0; privateIndex < privateBookingFields.length; privateIndex++) {
-                privateBookingFields[privateIndex].hidden = publicEvent;
-                var privateInputs = privateBookingFields[privateIndex].querySelectorAll('input, select, textarea');
-                for (var inputIndex = 0; inputIndex < privateInputs.length; inputIndex++) {
-                    privateInputs[inputIndex].disabled = publicEvent;
-                    privateInputs[inputIndex].required = !publicEvent;
-                }
-            }
-            var roomSaveButton = form.querySelector('[data-calsys-save-room]');
-            if (roomSaveButton) {
-                roomSaveButton.textContent = publicEvent
-                    ? (labels.savePublicEvent || 'Save public event')
-                    : (labels.confirmRoomBooking || 'Confirm room booking');
+    function updateBookingControls(form, publicEventToggle) {
+        if (!publicEventToggle) {
+            return;
+        }
+        var publicEventFields = form.querySelector('[data-calsys-public-event-fields]');
+        var privateBookingFields = form.querySelectorAll('[data-calsys-private-booking-field]');
+        var publicEvent = publicEventToggle.checked;
+        if (publicEventFields) {
+            publicEventFields.hidden = !publicEvent;
+            var publicInputs = publicEventFields.querySelectorAll('input, select, textarea, button');
+            for (var i = 0; i < publicInputs.length; i++) {
+                publicInputs[i].disabled = !publicEvent;
             }
         }
+        for (var i = 0; i < privateBookingFields.length; i++) {
+            privateBookingFields[i].hidden = publicEvent;
+            var privateInputs = privateBookingFields[i].querySelectorAll('input, select, textarea');
+            for (var j = 0; j < privateInputs.length; j++) {
+                privateInputs[j].disabled = publicEvent;
+                privateInputs[j].required = !publicEvent;
+            }
+        }
+        var roomSaveButton = form.querySelector('[data-calsys-save-room]');
+        if (roomSaveButton) {
+            roomSaveButton.textContent = publicEvent
+                ? (labels.savePublicEvent || 'Save public event')
+                : (labels.confirmRoomBooking || 'Confirm room booking');
+        }
+    }
 
+    function updateRegistrationControls(form, publicEventToggle) {
         var registrationToggle = form.querySelector('[data-calsys-toggle-registration]');
         var registrationSettings = form.querySelector('[data-calsys-registration-settings]');
         if (registrationToggle && registrationSettings) {
             registrationSettings.hidden = !registrationToggle.checked;
             var registrationInputs = registrationSettings.querySelectorAll('input, select, textarea, button');
-            for (var registrationIndex = 0; registrationIndex < registrationInputs.length; registrationIndex++) {
-                registrationInputs[registrationIndex].disabled = !registrationToggle.checked || (publicEventToggle && !publicEventToggle.checked);
+            for (var i = 0; i < registrationInputs.length; i++) {
+                registrationInputs[i].disabled = !registrationToggle.checked || (publicEventToggle && !publicEventToggle.checked);
             }
         }
         var seriesChoice = form.querySelector('[name="series_id"]');
@@ -305,7 +302,9 @@
             }
             seriesName.required = !seriesChoice.disabled && creatingSeries;
         }
+    }
 
+    function updateRoomControls(form) {
         var roomToggle = form.querySelector('[data-calsys-toggle-room]');
         var roomSelect = form.querySelector('[data-calsys-room-select]');
         if (roomToggle && roomSelect) {
@@ -315,7 +314,9 @@
                 roomSelect.value = '';
             }
         }
+    }
 
+    function updateRecurrenceControls(form, publicEventToggle) {
         var recurrenceToggle = form.querySelector('[data-calsys-toggle-recurrence]');
         var recurrenceFields = form.querySelectorAll('[data-calsys-recurrence-field]');
         var recurrenceVisible = recurrenceToggle && recurrenceToggle.checked;
@@ -347,7 +348,14 @@
         }
     }
 
-    // Initializes conditional controls in forms within the supplied DOM scope.
+    function updateFormControls(form) {
+        var publicEventToggle = form.querySelector('[data-calsys-toggle-public-event]');
+        updateBookingControls(form, publicEventToggle);
+        updateRegistrationControls(form, publicEventToggle);
+        updateRoomControls(form);
+        updateRecurrenceControls(form, publicEventToggle);
+    }
+
     function initializeFormControls(scope) {
         var forms = scope.querySelectorAll('.calsys-action-form, .calsys-admin-form');
         for (var i = 0; i < forms.length; i++) {
@@ -355,7 +363,6 @@
         }
     }
 
-    // Opens a dialog and focuses its first usable input.
     function openDialog(dialog) {
         if (!dialog) {
             return;
@@ -375,7 +382,6 @@
         dialog.scrollTop = 0;
     }
 
-    // Closes a dialog using native dialog support or the compatibility fallback.
     function closeDialog(dialog) {
         if (!dialog) {
             return;
@@ -426,7 +432,6 @@
         button.focus();
     }
 
-    // Shows a modal popup with a message (used for advance booking limit and other notifications)
     function showMessageDialog(title, message) {
         var dialog = document.createElement('dialog');
         dialog.className = 'calsys-modal calsys-message-dialog';
@@ -464,22 +469,18 @@
         button.focus();
     }
 
-    // Opens the event editor belonging to a calendar widget.
     function openEventDialog(widget) {
         openDialog(widget.querySelector('.calsys-event-dialog'));
     }
 
-    // Opens the room booking form belonging to a calendar widget.
     function openRoomDialog(widget) {
         openDialog(widget.querySelector('.calsys-room-dialog'));
     }
 
-    // Opens the staff schedule editor belonging to a calendar widget.
     function openStaffDialog(widget) {
         openDialog(widget.querySelector('.calsys-staff-dialog'));
     }
 
-    // Resets the event editor and clears edit-only state before creating an event.
     function resetEventForm(widget) {
         var form = widget.querySelector('.calsys-event-editor form');
         if (!form) {
@@ -543,7 +544,6 @@
         return form;
     }
 
-    // Shows and requires the options field only for dropdown registration fields.
     function updateRegistrationFieldOptions(row) {
         var type = row.querySelector('[data-calsys-registration-field-type]');
         var options = row.querySelector('[data-calsys-registration-field-options]');
@@ -556,7 +556,6 @@
         }
     }
 
-    // Creates a custom registration-field editor row from its saved definition.
     function createRegistrationField(container, field) {
         var types = labels.registrationFieldTypes || {};
         var index = parseInt(container.dataset.nextIndex || '0', 10);
@@ -583,7 +582,6 @@
         var typeSelect = document.createElement('select');
         typeSelect.name = prefix + '[type]';
         typeSelect.setAttribute('data-calsys-registration-field-type', '');
-        // Adds each supported field type to the row's type selector.
         Object.keys(types).forEach(function (key) {
             var option = document.createElement('option');
             option.value = key;
@@ -625,7 +623,6 @@
         updateRegistrationFieldOptions(row);
     }
 
-    // Resets the staff editor and hides any delete action from a prior edit.
     function resetStaffForm(widget) {
         var form = widget.querySelector('.calsys-staff-editor form');
         if (!form) {
@@ -655,13 +652,16 @@
         return form;
     }
 
-    // Resets the room form and hides any delete action from a prior edit.
     function resetRoomForm(widget) {
         var form = widget.querySelector('.calsys-room-request form');
         if (!form) {
             return null;
         }
         form.reset();
+        var equipment = form.querySelector('.calsys-room-equipment');
+        if (equipment) {
+            equipment.open = false;
+        }
         var savedInitials = form.querySelector('[data-calsys-saved-initials]');
         if (savedInitials) {
             savedInitials.textContent = '';
@@ -835,7 +835,6 @@
             var eventDialog = widget.querySelector('.calsys-event-dialog');
             closeDialog(eventDialog);
         } else if (button.hasAttribute('data-calsys-add-room')) {
-            // Check advance booking limit before opening form
             if (button.dataset.staffBooking !== '1' && button.dataset.date) {
                 var maxAdvanceMonths = parseInt(button.dataset.maxAdvanceMonths || '0', 10);
                 if (maxAdvanceMonths > 0) {
@@ -960,7 +959,6 @@
                         if (!Array.isArray(eventFields)) {
                             throw new Error('Registration fields must be an array.');
                         }
-                        // Restores each saved custom field in the event editor.
                         eventFields.forEach(function (field) {
                             createRegistrationField(fieldsContainer, field);
                         });

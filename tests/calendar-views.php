@@ -25,7 +25,15 @@ function calsys_equipment_for_source() { return array(); }
 function current_user_can($capability) { return $GLOBALS['staff']; }
 function is_user_logged_in() { return $GLOBALS['logged_in']; }
 function calsys_table($name) { return 'wp_calsys_' . $name; }
-function calsys_get_settings() { return array('privacy' => array('hide_guest_room_bookings' => $GLOBALS['hide_guest_room_bookings'], 'show_room_names' => $GLOBALS['show_room_names'], 'show_room_status' => true), 'booking_rules' => $GLOBALS['booking_rules'], 'calendar_display' => array('initial_month' => 'current', 'show_filter_heading' => $GLOBALS['show_filter_heading'] ?? 0), 'event_registration' => array('confirmation_message' => '', 'disabled_message' => '', 'closed_message' => '', 'full_message' => '')); }
+function calsys_get_settings() {
+    return array(
+        'privacy' => array('hide_guest_room_bookings' => $GLOBALS['hide_guest_room_bookings'], 'show_room_names' => $GLOBALS['show_room_names'], 'show_room_status' => true),
+        'booking_rules' => $GLOBALS['booking_rules'],
+        'calendar_display' => array('initial_month' => 'current', 'show_filter_heading' => $GLOBALS['show_filter_heading'] ?? 0),
+        'event_registration' => array('confirmation_message' => '', 'disabled_message' => '', 'closed_message' => '', 'full_message' => ''),
+        'room_requests' => array('submitted_message' => '', 'already_booked_message' => '', 'advance_booking_message' => ''),
+    );
+}
 function get_option($name) { return $name === 'time_format' ? 'H:i' : 'Y-m-d'; }
 function wp_date($format, $timestamp, $timezone) { return (new DateTimeImmutable('@' . $timestamp))->setTimezone($timezone)->format($format); }
 function remove_query_arg($args) {
@@ -149,6 +157,7 @@ $booking_rules = array(
 );
 $staff = false;
 $logged_in = false;
+$active_rooms = false;
 $hide_guest_room_bookings = false;
 $show_room_names = true;
 $wpdb->staff_entries = array(
@@ -317,7 +326,7 @@ foreach (array('rooms', 'combined') as $calendar_type) {
 }
 $staff = true;
 $html = calsys_render_calendar('Rooms', array(), $month, 'combined', 'day', $selected, true);
-expect(strpos($html, 'data-calsys-add-room data-date="2026-11-11">Add</button>') !== false, 'Staff must still be able to book on closed days');
+expect((bool) preg_match('/<button\b[^>]*data-calsys-add-room\b[^>]*data-date="2026-11-11"[^>]*>Add<\/button>/', $html), 'Staff must still be able to book on closed days');
 $pending = (object) array(
     'id' => 17, 'title' => 'Room', 'calendar_type' => 'room', 'status' => 'pending',
     'starts_at' => '2026-11-11 10:00:00', 'ends_at' => '2026-11-11 11:00:00', 'all_day' => 0, 'source_type' => 'private',

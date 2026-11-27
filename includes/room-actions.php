@@ -3,7 +3,6 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Validates and creates or updates a study room. */
 function calsys_save_room() {
     calsys_require_staff();
     check_admin_referer('calsys_save_room');
@@ -69,9 +68,12 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
         }
     }
     $booking_id = $frontend && $staff_booking ? absint($_POST['booking_id'] ?? 0) : 0;
-    $equipment = calsys_posted_equipment();
+    $equipment = calsys_posted_room_equipment();
     if ($equipment === false) {
         calsys_action_redirect($frontend, 'calsys-rooms', 'invalid_room_request');
+    }
+    if ($equipment === 'disabled') {
+        calsys_action_redirect($frontend, 'calsys-rooms', 'equipment_disabled');
     }
     $booking = calsys_valid_booking_input(
         $_POST['room_id'] ?? 0,
@@ -244,13 +246,11 @@ function calsys_save_booking($staff_booking = false, $frontend = false) {
     calsys_action_redirect($frontend, 'calsys-rooms', $notice);
 }
 
-/** Handles room bookings created by staff in the admin management screen. */
 function calsys_staff_booking() {
     calsys_save_booking(true);
 }
 add_action('admin_post_calsys_staff_booking', 'calsys_staff_booking');
 
-/** Handles a room request submitted through a public booking form. */
 function calsys_public_room_booking() {
     $frontend = !empty($_POST['calsys_frontend']);
     $staff_booking = $frontend && !empty($_POST['staff_booking']);
@@ -459,7 +459,6 @@ function calsys_clear_room_email_review($booking_id) {
     }
 }
 
-/** Removes an expired email review token. */
 function calsys_expire_room_email_review($option, $token_hash = '') {
     if (!is_string($option)) {
         return;
@@ -586,7 +585,6 @@ function calsys_room_email_review() {
 add_action('admin_post_calsys_room_email_review', 'calsys_room_email_review');
 add_action('admin_post_nopriv_calsys_room_email_review', 'calsys_room_email_review');
 
-/** Deletes an existing room booking submitted from a staff calendar dialog. */
 function calsys_front_delete_room_booking() {
     calsys_require_staff();
     check_admin_referer('calsys_front_delete_room_booking');

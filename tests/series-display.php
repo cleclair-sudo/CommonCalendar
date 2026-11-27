@@ -14,7 +14,11 @@ function calsys_get_settings() {
         'name_label' => 'Name', 'email_label' => 'Email', 'submit_label' => 'Register',
         'full_message' => 'Full', 'closed_message' => 'Closed', 'disabled_message' => 'Disabled', 'confirmation_message' => 'Confirmed',
         'reminder_label' => 'Email me a reminder'),
-        'notifications' => array('email_event_reminders' => !empty($GLOBALS['reminders_enabled'])));
+        'notifications' => array('email_event_reminders' => !empty($GLOBALS['reminders_enabled'])),
+        'room_requests' => array(
+            'submitted_message' => 'We have received your room request. We will be in touch by email, please remember to check your junk folder.',
+            'already_booked_message' => 'That room is already booked.',
+        ));
 }
 function calsys_event_capacity($capacity) { return (int) $capacity; }
 function calsys_decode_registration_fields($json) { return json_decode($json, true) ?: array(); }

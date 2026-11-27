@@ -22,7 +22,6 @@ function calsys_equipment_for_source($source_type, $source_id, $lock = false) {
     return $quantities;
 }
 
-/** Returns the equipment names and quantities for staff review. */
 function calsys_equipment_description($source_type, $source_id) {
     global $wpdb;
     $rows = $wpdb->get_results($wpdb->prepare(
@@ -60,7 +59,6 @@ function calsys_equipment_peak($reservations) {
     return $peak;
 }
 
-/** Validates the optional quantities submitted by a booking form. */
 function calsys_posted_equipment() {
     if (!isset($_POST['equipment_present'])) {
         return null;
@@ -82,6 +80,15 @@ function calsys_posted_equipment() {
         }
     }
     return $items;
+}
+
+/** Returns null to keep existing reservations when room equipment is disabled. */
+function calsys_posted_room_equipment() {
+    $requested = calsys_posted_equipment();
+    if ($requested === false || calsys_get_settings()['room_equipment_enabled']) {
+        return $requested;
+    }
+    return $requested ? 'disabled' : null;
 }
 
 /** Replaces a source's equipment reservations while holding inventory locks. */
@@ -160,7 +167,6 @@ function calsys_sync_equipment($source_type, $source_id, $items, $starts_at, $en
     return 'saved';
 }
 
-/** Renders equipment quantity controls for a request or staff editor. */
 function calsys_equipment_fields($selected = array()) {
     global $wpdb;
     $items = $wpdb->get_results("SELECT id, name, quantity, active FROM " . calsys_table('equipment') . " ORDER BY name ASC, id ASC");
@@ -185,6 +191,15 @@ function calsys_equipment_fields($selected = array()) {
     </fieldset>
     <?php
     return ob_get_clean();
+}
+
+function calsys_room_equipment_fields() {
+    if (!calsys_get_settings()['room_equipment_enabled']) {
+        return '';
+    }
+    return '<details class="calsys-room-equipment"><summary>' .
+        esc_html__('Request equipment (optional)', 'community-calendar-study-rooms') .
+        '</summary>' . calsys_equipment_fields() . '</details>';
 }
 
 /** Adds or updates equipment without invalidating existing reservations. */
@@ -236,7 +251,6 @@ function calsys_save_equipment() {
 }
 add_action('admin_post_calsys_save_equipment', 'calsys_save_equipment');
 
-/** Renders the equipment inventory controls in Settings. */
 function calsys_admin_equipment_settings() {
     global $wpdb;
     $items = $wpdb->get_results("SELECT id, name, quantity, active FROM " . calsys_table('equipment') . " ORDER BY name ASC, id ASC");

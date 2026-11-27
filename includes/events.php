@@ -3,7 +3,21 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-/** Calculates the start and end datetimes for a recurring event series. */
+function calsys_occurrence_start($start, $frequency, $index) {
+    if ($frequency === 'daily') {
+        return $start->modify('+' . $index . ' days');
+    }
+    if ($frequency === 'weekly') {
+        return $start->modify('+' . ($index * 7) . ' days');
+    }
+
+    // Keep the original day where possible, or use the last day of the month.
+    $month = $start->modify('first day of this month')->modify('+' . $index . ' months');
+    $day = min((int) $start->format('j'), (int) $month->format('t'));
+    return $month->setDate((int) $month->format('Y'), (int) $month->format('n'), $day)
+        ->setTime((int) $start->format('H'), (int) $start->format('i'), (int) $start->format('s'));
+}
+
 function calsys_event_occurrences($starts_at, $ends_at, $frequency, $end_type, $count, $until) {
     $start = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $starts_at, wp_timezone());
     $end = DateTimeImmutable::createFromFormat('!Y-m-d H:i:s', $ends_at, wp_timezone());
@@ -35,16 +49,7 @@ function calsys_event_occurrences($starts_at, $ends_at, $frequency, $end_type, $
     }
 
     for ($index = 1; $index < $limit; $index++) {
-        if ($frequency === 'daily') {
-            $next_start = $start->modify('+' . $index . ' days');
-        } elseif ($frequency === 'weekly') {
-            $next_start = $start->modify('+' . ($index * 7) . ' days');
-        } else {
-            $month_start = $start->modify('first day of this month')->modify('+' . $index . ' months');
-            $day = min((int) $start->format('j'), (int) $month_start->format('t'));
-            $next_start = $month_start->setDate((int) $month_start->format('Y'), (int) $month_start->format('n'), $day)
-                ->setTime((int) $start->format('H'), (int) $start->format('i'), (int) $start->format('s'));
-        }
+        $next_start = calsys_occurrence_start($start, $frequency, $index);
         if ($end_type === 'date' && $next_start->format('Y-m-d') > $until) {
             break;
         }
@@ -56,17 +61,7 @@ function calsys_event_occurrences($starts_at, $ends_at, $frequency, $end_type, $
         return false;
     }
     if ($end_type === 'date' && count($occurrences) === 100) {
-        $probe_index = 100;
-        if ($frequency === 'daily') {
-            $probe = $start->modify('+' . $probe_index . ' days');
-        } elseif ($frequency === 'weekly') {
-            $probe = $start->modify('+' . ($probe_index * 7) . ' days');
-        } else {
-            $month_start = $start->modify('first day of this month')->modify('+' . $probe_index . ' months');
-            $day = min((int) $start->format('j'), (int) $month_start->format('t'));
-            $probe = $month_start->setDate((int) $month_start->format('Y'), (int) $month_start->format('n'), $day)
-                ->setTime((int) $start->format('H'), (int) $start->format('i'), (int) $start->format('s'));
-        }
+        $probe = calsys_occurrence_start($start, $frequency, 100);
         if ($probe->format('Y-m-d') <= $until) {
             return false;
         }
@@ -96,9 +91,13 @@ function calsys_save_event($frontend = false) {
     $category = sanitize_key(wp_unslash($_POST['category'] ?? 'adult'));
     $categories = calsys_event_categories();
     $event_id = absint($_POST['event_id'] ?? 0);
-    $equipment = calsys_posted_equipment();
+    $room_form_booking = $frontend && !empty($_POST['staff_booking']) && !empty($_POST['public_event']);
+    $equipment = $room_form_booking ? calsys_posted_room_equipment() : calsys_posted_equipment();
     if ($equipment === false) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
+    }
+    if ($equipment === 'disabled') {
+        calsys_action_redirect($frontend, 'calsys-events', 'equipment_disabled');
     }
     $image_id = absint(wp_unslash($_POST['image_id'] ?? 0));
     if (!isset($_POST['image_id']) && $event_id) {
@@ -212,7 +211,6 @@ function calsys_save_event($frontend = false) {
         calsys_action_redirect($frontend, 'calsys-events', 'invalid');
     }
     $recurrence_group = $recurring && count($occurrences) > 1 ? wp_generate_uuid4() : '';
-    $room_form_booking = $frontend && !empty($_POST['staff_booking']) && !empty($_POST['public_event']);
     $allow_first_conflict = $room_form_booking && ($_POST['confirm_room_conflict'] ?? '') === '1';
     $data = array(
         'title' => $title,
@@ -349,7 +347,6 @@ function calsys_save_event($frontend = false) {
     calsys_action_redirect($frontend, 'calsys-events', $skipped ? 'saved_room_conflicts' : 'saved', $skipped);
 }
 
-/** Handles event saves submitted through the public calendar editor. */
 function calsys_front_save_event() {
     calsys_save_event(true);
 }
@@ -430,13 +427,11 @@ function calsys_delete_event($frontend = false) {
     calsys_action_redirect($frontend, 'calsys-events', $email_failed ? 'event_deleted_email_failed' : 'event_deleted');
 }
 
-/** Handles event deletion submitted through the public calendar editor. */
 function calsys_front_delete_event() {
     calsys_delete_event(true);
 }
 add_action('admin_post_calsys_front_delete_event', 'calsys_front_delete_event');
 
-/** Handles event deletion submitted from the WordPress admin event manager. */
 function calsys_admin_delete_event() {
     calsys_delete_event(false);
 }

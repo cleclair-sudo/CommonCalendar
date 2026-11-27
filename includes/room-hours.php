@@ -47,7 +47,6 @@ function calsys_normalize_hours($hours, $allow_unrestricted = true, $reject_unus
     return array('mode' => 'open', 'open' => $open, 'close' => $close);
 }
 
-/** Validates weekly hours and dated or annually recurring exceptions. */
 function calsys_normalize_room_schedule($weekly, $holidays, $reject_unused_times = false) {
     if (!is_array($weekly) || count($weekly) !== 7 || !is_array($holidays) || count($holidays) > 100) {
         return false;
@@ -106,7 +105,6 @@ function calsys_room_hours_for_date($date, $rules = null) {
     return $annual ?? $rules['weekly_hours'][(int) $day->format('w')];
 }
 
-/** Returns whether an interval is entirely inside its day's opening hours. */
 function calsys_room_is_within_hours($date, $start, $end, $rules = null) {
     $hours = calsys_room_hours_for_date($date, $rules);
     if ($hours === false || $hours['mode'] === 'closed') {

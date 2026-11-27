@@ -85,6 +85,7 @@ if (($argv[1] ?? '') === 'reload') {
     expect(calsys_get_settings()['notifications']['room_email_review_enabled'] === 1 &&
         calsys_get_settings()['notifications']['room_email_review_days'] === 35, 'Link settings must survive a reload');
     expect(calsys_get_settings()['calendar_display']['show_filter_heading'] === 1, 'The filter heading preference must survive a reload');
+    expect(calsys_get_settings()['room_equipment_enabled'] === 1, 'The room equipment preference must survive a reload');
     $_GET = array();
     ob_start();
     calsys_admin_settings_page();
@@ -108,6 +109,7 @@ expect(calsys_get_settings()['notifications']['room_email_review_enabled'] === 1
     calsys_get_settings()['notifications']['room_email_review_days'] === 7, 'Existing settings must retain seven-day links by default');
 expect(calsys_get_settings()['notifications']['room_request_recipients'] === array(), 'Existing settings must default to the staff address for room request alerts');
 expect($defaults['calendar_display']['show_filter_heading'] === 0 && calsys_get_settings()['calendar_display']['show_filter_heading'] === 0, 'The filter heading must default to hidden for new and existing settings');
+expect(calsys_get_settings()['room_equipment_enabled'] === 1, 'Existing settings must leave room equipment requests enabled');
 $_POST = array(
     'calendar_colors' => $defaults['calendar_colors'],
     'staff_types' => array(),
@@ -116,6 +118,7 @@ $_POST = array(
     'event_registration' => $defaults['event_registration'],
     'calendar_display' => array('week_start_day' => 'site', 'initial_month' => 'current', 'show_filter_heading' => '1'),
     'room_requests' => $defaults['room_requests'],
+    'room_equipment_enabled' => '1',
     'notifications' => array('staff_email' => 'staff@example.org'),
     'privacy' => $defaults['privacy'],
     'room_schedule_present' => '1',
@@ -152,6 +155,7 @@ expect($saved['notifications']['room_request_recipients'] === array('one@example
 expect($saved['notifications']['room_email_review_enabled'] === 1 && $saved['notifications']['room_email_review_days'] === 35,
     'Custom link duration and enabled state must save');
 expect($saved['calendar_display']['show_filter_heading'] === 1, 'Enabling the filter heading must save');
+expect($saved['room_equipment_enabled'] === 1, 'Enabling room equipment requests must save');
 unset($_POST['notifications']['email_event_registrant']);
 expect(save_settings() === 'settings_saved', 'Disabling the confirmation must save');
 $saved = $options['calsys_settings'];
@@ -176,6 +180,8 @@ fclose($pipes[1]);
 fclose($pipes[2]);
 expect(proc_close($process) === 0, 'Settings reload failed: ' . $output);
 
+unset($_POST['room_equipment_enabled']);
+expect(save_settings() === 'settings_saved' && $options['calsys_settings']['room_equipment_enabled'] === 0, 'Disabling room equipment requests must save');
 unset($_POST['calendar_display']['show_filter_heading']);
 expect(save_settings() === 'settings_saved' && $options['calsys_settings']['calendar_display']['show_filter_heading'] === 0, 'Disabling the filter heading must save');
 $saved = $options['calsys_settings'];

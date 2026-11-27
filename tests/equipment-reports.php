@@ -14,6 +14,12 @@ function add_action() {}
 function wp_unslash($value) { return $value; }
 function wp_timezone() { return new DateTimeZone('America/New_York'); }
 function __($value) { return $value; }
+function esc_html__($value) { return htmlspecialchars($value, ENT_QUOTES, 'UTF-8'); }
+function esc_html_e($value) { echo esc_html__($value); }
+function esc_html($value) { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
+function esc_attr($value) { return esc_html($value); }
+function current_user_can() { return false; }
+function calsys_get_settings() { return array('room_equipment_enabled' => $GLOBALS['room_equipment_enabled']); }
 function mysql2date($format, $value) { return date($format, strtotime($value)); }
 function get_option($name) { return 'Y-m-d'; }
 function calsys_table($name) { return 'wp_calsys_' . $name; }
@@ -41,6 +47,23 @@ $_POST['equipment_complete'] = '1';
 expect(calsys_posted_equipment() === array(2 => 3), 'Valid quantities must be parsed');
 $_POST['equipment']['2'] = '-1';
 expect(calsys_posted_equipment() === false, 'Negative quantities must be rejected');
+
+$room_equipment_enabled = 1;
+$wpdb->result = array((object) array('id' => 2, 'name' => 'Projector', 'quantity' => 3, 'active' => 1));
+$room_fields = calsys_room_equipment_fields();
+expect(strpos($room_fields, '<details') !== false && strpos($room_fields, '<details open') === false &&
+    strpos($room_fields, 'name="equipment[2]"') !== false, 'Enabled room equipment must appear in a collapsed section');
+$_POST = array('equipment_present' => '1', 'equipment_complete' => '1', 'equipment' => array('2' => '2'));
+expect(calsys_posted_room_equipment() === array(2 => 2), 'Enabled room equipment must accept requested quantities');
+$room_equipment_enabled = 0;
+expect(calsys_room_equipment_fields() === '', 'Disabled room equipment must not render controls');
+expect(calsys_posted_room_equipment() === 'disabled', 'A stale room form must not add equipment while disabled');
+$_POST['equipment']['2'] = '0';
+expect(calsys_posted_room_equipment() === null, 'Disabled room equipment must preserve existing reservations on edit');
+unset($_POST['equipment_complete']);
+expect(calsys_posted_room_equipment() === false, 'Incomplete equipment submissions must still be rejected');
+$_POST = array();
+expect(calsys_posted_room_equipment() === null, 'Disabled forms without equipment fields must preserve existing reservations');
 
 expect(calsys_report_dates('2024-02-29', '2024-03-01') === array('2024-02-29', '2024-03-01'), 'Leap day should be accepted');
 expect(calsys_report_dates('2026-02-29', '2026-03-01') === false, 'Invalid dates must be rejected');

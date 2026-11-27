@@ -6,7 +6,7 @@
 }
 
 .calsys-task-sidebar[open] {
-    width: min(26rem, calc(100vw - 2rem));
+    width: 3rem;
 }
 
 .calsys-task-sidebar > summary {
@@ -18,19 +18,16 @@
     display: block;
     font-weight: 600;
     list-style: none;
-    padding: .7rem 1rem;
+    box-sizing: border-box;
+    font-size: 1.3rem;
+    height: 3rem;
+    padding: .5rem;
+    text-align: center;
+    width: 3rem;
 }
 
 .calsys-task-sidebar > summary::-webkit-details-marker {
     display: none;
-}
-
-.calsys-task-sidebar > summary::after {
-    content: ' +';
-}
-
-.calsys-task-sidebar[open] > summary::after {
-    content: ' −';
 }
 
 .calsys-task-sidebar > summary:focus-visible {
@@ -39,6 +36,10 @@
 }
 
 .calsys-tasks {
+    position: absolute;
+    bottom: 3.5rem;
+    right: 0;
+    width: min(26rem, calc(100vw - 2rem));
     background: #fff;
     border: 1px solid #d7dce2;
     border-radius: .5rem;

@@ -189,6 +189,22 @@ function calsys_admin_menu() {
         'calsys_admin_tasks_page'
     );
     add_submenu_page(
+        calsys_communication_allowed() ? 'calsys-home' : null,
+        __('Communication', 'community-calendar-study-rooms'),
+        __('Communication', 'community-calendar-study-rooms'),
+        'manage_calendar_system',
+        'calsys-communication',
+        'calsys_admin_communication_page'
+    );
+    add_submenu_page(
+        calsys_wiki_enabled() ? 'calsys-home' : null,
+        __('Wiki', 'community-calendar-study-rooms'),
+        __('Wiki', 'community-calendar-study-rooms'),
+        'calsys_manage_wiki',
+        'calsys-wiki',
+        'calsys_admin_wiki_page'
+    );
+    add_submenu_page(
         'calsys-home',
         __('Settings', 'community-calendar-study-rooms'),
         __('Settings', 'community-calendar-study-rooms'),
@@ -228,6 +244,10 @@ function calsys_admin_settings_page() {
         <p class="calsys-admin-intro"><?php esc_html_e('Manage calendars, rooms, registration forms, booking rules, and what visitors can see. Changes take effect when you save.', 'community-calendar-study-rooms'); ?></p>
         <nav class="calsys-settings-nav" aria-label="<?php esc_attr_e('Settings sections', 'community-calendar-study-rooms'); ?>">
             <a href="#calsys-settings-my-tasks"><?php esc_html_e('My tasks', 'community-calendar-study-rooms'); ?></a>
+            <?php if (current_user_can('manage_options')) : ?>
+                <a href="#calsys-settings-communication"><?php esc_html_e('Communication', 'community-calendar-study-rooms'); ?></a>
+                <a href="#calsys-settings-wiki"><?php esc_html_e('Wiki', 'community-calendar-study-rooms'); ?></a>
+            <?php endif; ?>
             <a href="#calsys-settings-event-emails"><?php esc_html_e('Event emails', 'community-calendar-study-rooms'); ?></a>
             <a href="#calsys-settings-calendars"><?php esc_html_e('Calendars', 'community-calendar-study-rooms'); ?></a>
             <a href="#calsys-settings-bookings"><?php esc_html_e('Bookings', 'community-calendar-study-rooms'); ?></a>
@@ -242,6 +262,8 @@ function calsys_admin_settings_page() {
             <a href="#calsys-settings-equipment"><?php esc_html_e('Equipment', 'community-calendar-study-rooms'); ?></a>
         </nav>
         <?php calsys_task_settings_panel(); ?>
+        <?php calsys_communication_settings_panel(); ?>
+        <?php calsys_wiki_settings_panel(); ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('calsys_save_settings'); ?>
             <input type="hidden" name="action" value="calsys_save_settings">

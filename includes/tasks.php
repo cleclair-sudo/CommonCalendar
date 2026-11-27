@@ -18,7 +18,7 @@ function calsys_admin_tasks_page() {
     calsys_require_staff();
     echo '<div class="wrap"><h1>' . esc_html__('My tasks', 'community-calendar-study-rooms') . '</h1>';
     if (calsys_tasks_enabled()) {
-        echo '<p>' . esc_html__('Use the My tasks button to open your sidebar.', 'community-calendar-study-rooms') . '</p>';
+        echo '<p>' . esc_html__('Use the checkmark button to open your task sidebar.', 'community-calendar-study-rooms') . '</p>';
         echo calsys_render_tasks(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
     } else {
         $url = admin_url('admin.php?page=calsys-settings#calsys-settings-my-tasks');
@@ -328,9 +328,14 @@ function calsys_render_task($task, $events, $edit_id) {
 }
 
 function calsys_render_tasks() {
+    static $rendered = false;
     if (!current_user_can('manage_calendar_system') || !calsys_tasks_enabled()) {
         return '';
     }
+    if ($rendered) {
+        return '';
+    }
+    $rendered = true;
     $messages = array(
         'saved' => __('Task changes saved.', 'community-calendar-study-rooms'),
         'invalid' => __('Please enter a task title and a valid due date.', 'community-calendar-study-rooms'),
@@ -343,7 +348,7 @@ function calsys_render_tasks() {
     ob_start();
     ?>
     <details class="calsys-task-sidebar"<?php echo $open ? ' open' : ''; ?>>
-        <summary><?php esc_html_e('My tasks', 'community-calendar-study-rooms'); ?></summary>
+        <summary aria-label="<?php esc_attr_e('My tasks', 'community-calendar-study-rooms'); ?>" title="<?php esc_attr_e('My tasks', 'community-calendar-study-rooms'); ?>"><span aria-hidden="true">&#10003;</span></summary>
         <section class="calsys-tasks" id="calsys-tasks" aria-label="<?php esc_attr_e('My tasks', 'community-calendar-study-rooms'); ?>">
             <h2><?php esc_html_e('My tasks', 'community-calendar-study-rooms'); ?></h2>
             <?php if (isset($messages[$notice])) : ?>

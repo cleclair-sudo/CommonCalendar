@@ -18,19 +18,25 @@ body.calsys-app {
 
 .calsys-app-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: .5rem;
     margin-bottom: 1rem;
 }
 
-.calsys-app-tabs a {
+.calsys-app-tabs a,
+.calsys-app-tabs button {
+    background: transparent;
     border: 1px solid #175c66;
     border-radius: .4rem;
     color: #175c66;
     padding: .6rem .9rem;
     text-decoration: none;
+    font: inherit;
+    cursor: pointer;
 }
 
-.calsys-app-tabs a[aria-current="page"] {
+.calsys-app-tabs a[aria-current="page"],
+.calsys-app-tabs button[aria-expanded="true"] {
     background: #175c66;
     color: #fff;
 }

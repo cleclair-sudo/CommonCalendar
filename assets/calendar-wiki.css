@@ -1,0 +1,80 @@
+.calsys-wiki-layout {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 17rem minmax(0, 1fr);
+    margin-top: 1rem;
+}
+
+.calsys-wiki-sidebar,
+.calsys-wiki-document {
+    background: #fff;
+    border: 1px solid #d7dce2;
+    border-radius: .4rem;
+    min-width: 0;
+    padding: 1rem;
+}
+
+.calsys-wiki-sidebar form {
+    display: grid;
+    gap: .5rem;
+}
+
+.calsys-wiki-sidebar input,
+.calsys-wiki-sidebar select {
+    max-width: 100%;
+    width: 100%;
+}
+
+.calsys-wiki-sidebar li {
+    margin-bottom: .6rem;
+    overflow-wrap: anywhere;
+}
+
+.calsys-wiki-sidebar a[aria-current="page"] {
+    font-weight: 700;
+}
+
+.calsys-wiki-content {
+    font-size: .95rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.calsys-wiki-content ul {
+    list-style: disc;
+    padding-left: 1.5rem;
+}
+
+.calsys-wiki-content ol {
+    list-style: decimal;
+    padding-left: 1.5rem;
+}
+
+.calsys-wiki-content img,
+.calsys-wiki-content table {
+    max-width: 100%;
+}
+
+.calsys-wiki-content table {
+    border-collapse: collapse;
+    display: block;
+    overflow-x: auto;
+}
+
+.calsys-wiki-content th,
+.calsys-wiki-content td {
+    border: 1px solid #d7dce2;
+    padding: .5rem;
+}
+
+.calsys-wiki-content pre {
+    background: #f4f7f8;
+    overflow-x: auto;
+    padding: .75rem;
+}
+
+@media (max-width: 782px) {
+    .calsys-wiki-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

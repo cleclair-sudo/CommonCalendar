@@ -161,7 +161,40 @@ function calsys_activate() {
         KEY user_tasks (user_id, completed, due_date)
     ) $collate;");
 
-    foreach (array('equipment', 'equipment_reservations', 'waitlist', 'series', 'tasks') as $table_name) {
+    dbDelta("CREATE TABLE " . calsys_table('channels') . " (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        name varchar(80) NOT NULL,
+        PRIMARY KEY  (id),
+        UNIQUE KEY name (name)
+    ) $collate;");
+
+    dbDelta("CREATE TABLE " . calsys_table('messages') . " (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        channel_id bigint(20) unsigned NOT NULL,
+        user_id bigint(20) unsigned NOT NULL,
+        body text NOT NULL,
+        file_name varchar(200) NOT NULL DEFAULT '',
+        file_type varchar(100) NOT NULL DEFAULT '',
+        file_data longtext NOT NULL,
+        created_at datetime NOT NULL,
+        PRIMARY KEY  (id),
+        KEY channel_messages (channel_id, id),
+        KEY user_messages (user_id, id)
+    ) $collate;");
+
+    dbDelta("CREATE TABLE " . calsys_table('wiki_files') . " (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        post_id bigint(20) unsigned NOT NULL,
+        user_id bigint(20) unsigned NOT NULL,
+        file_name varchar(200) NOT NULL,
+        file_type varchar(100) NOT NULL,
+        file_data longtext NOT NULL,
+        created_at datetime NOT NULL,
+        PRIMARY KEY  (id),
+        KEY page_files (post_id, id)
+    ) $collate;");
+
+    foreach (array('equipment', 'equipment_reservations', 'waitlist', 'series', 'tasks', 'channels', 'messages', 'wiki_files') as $table_name) {
         $table = calsys_table($table_name);
         $found = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
         if ($found !== $table || $wpdb->last_error) {

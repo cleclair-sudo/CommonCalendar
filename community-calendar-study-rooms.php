@@ -2,7 +2,7 @@
 /**
  * Plugin Name: CommonCalendar
  * Description: Publish events, accept registrations, and manage study room requests.
- * Version: 0.09.72
+ * Version: 0.09.76
  * Author: Southern Maine Technology Initiative
  * Requires at least: 6.0
  * Requires PHP: 7.4
@@ -14,8 +14,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('CALSYS_VERSION', '0.09.72');
-define('CALSYS_DB_VERSION', '16');
+define('CALSYS_VERSION', '0.09.76');
+define('CALSYS_DB_VERSION', '18');
 define('CALSYS_PLUGIN_FILE', __FILE__);
 
 require_once __DIR__ . '/includes/core.php';
@@ -33,6 +33,9 @@ require_once __DIR__ . '/includes/registrations.php';
 require_once __DIR__ . '/includes/waitlist.php';
 require_once __DIR__ . '/includes/calendars.php';
 require_once __DIR__ . '/includes/tasks.php';
+require_once __DIR__ . '/includes/files.php';
+require_once __DIR__ . '/includes/communication.php';
+require_once __DIR__ . '/includes/wiki.php';
 require_once __DIR__ . '/includes/pwa.php';
 require_once __DIR__ . '/includes/ical.php';
 require_once __DIR__ . '/includes/privacy.php';

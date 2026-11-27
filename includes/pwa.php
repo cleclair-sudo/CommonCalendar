@@ -118,11 +118,22 @@ function calsys_pwa_content($url) {
     if (!current_user_can('manage_calendar_system')) {
         return calsys_staff_calendar_shortcode();
     }
-    $room_view = ($_GET['calsys_app_view'] ?? '') === 'rooms';
-    $output = '<nav class="calsys-app-tabs" aria-label="' . esc_attr__('Calendars', 'community-calendar-study-rooms') . '">' .
-        '<a href="' . esc_url($url) . '"' . (!$room_view ? ' aria-current="page"' : '') . '>' . esc_html__('Staff calendar', 'community-calendar-study-rooms') . '</a>' .
-        '<a href="' . esc_url(add_query_arg('calsys_app_view', 'rooms', $url)) . '"' . ($room_view ? ' aria-current="page"' : '') . '>' . esc_html__('Room calendar', 'community-calendar-study-rooms') . '</a></nav>';
-    return $output . ($room_view ? calsys_rooms_calendar_shortcode() : calsys_staff_calendar_shortcode());
+    $view = sanitize_key(wp_unslash($_GET['calsys_app_view'] ?? ''));
+    $tabs = array('' => __('Staff calendar', 'community-calendar-study-rooms'), 'rooms' => __('Room calendar', 'community-calendar-study-rooms'));
+    if (!isset($tabs[$view])) {
+        $view = '';
+    }
+    $output = '<nav class="calsys-app-tabs" aria-label="' . esc_attr__('Staff tools', 'community-calendar-study-rooms') . '">';
+    foreach ($tabs as $key => $label) {
+        $link = $key ? add_query_arg('calsys_app_view', $key, $url) : $url;
+        $output .= '<a href="' . esc_url($link) . '"' . ($view === $key ? ' aria-current="page"' : '') . '>' . esc_html($label) . '</a>';
+    }
+    if (calsys_communication_allowed()) {
+        $output .= '<button type="button" data-chat-toggle aria-controls="calsys-chat-panel" aria-expanded="false">' .
+            esc_html__('Communication', 'community-calendar-study-rooms') . '</button>';
+    }
+    $output .= '</nav>';
+    return $output . ($view === 'rooms' ? calsys_rooms_calendar_shortcode() : calsys_staff_calendar_shortcode());
 }
 
 /** Explains how to use the shortcode when it is embedded somewhere other than a dedicated page. */

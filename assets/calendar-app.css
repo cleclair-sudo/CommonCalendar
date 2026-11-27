@@ -1,0 +1,42 @@
+body.calsys-app {
+    margin: 0;
+    background: #f4f7f8;
+    color: #17333a;
+    font-family: system-ui, sans-serif;
+}
+
+.calsys-app-main {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+.calsys-app-header h1 {
+    font-size: 1.4rem;
+    margin: 0 0 1rem;
+}
+
+.calsys-app-tabs {
+    display: flex;
+    gap: .5rem;
+    margin-bottom: 1rem;
+}
+
+.calsys-app-tabs a {
+    border: 1px solid #175c66;
+    border-radius: .4rem;
+    color: #175c66;
+    padding: .6rem .9rem;
+    text-decoration: none;
+}
+
+.calsys-app-tabs a[aria-current="page"] {
+    background: #175c66;
+    color: #fff;
+}
+
+.calsys-app-warning {
+    background: #fff2cc;
+    border: 1px solid #8a6400;
+    padding: .75rem;
+}

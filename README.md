@@ -68,6 +68,7 @@ The plugin creates its database tables on activation. Deactivating it does not d
 - **Equipment inventory:** Add equipment, set quantities, and mark items unavailable for new reservations. Existing future reservations prevent reducing a quantity below the amount already reserved at the same time.
 - **Equipment reservations:** Attach equipment to room requests, staff room bookings, events, or staff entries, even if an event or staff entry has no room. Pending and approved reservations count against inventory. An equipment conflict prevents the entire save, including a recurring-event series.
 - **Private staff calendar:** Manage meetings, sick time, time off, and other configurable booking types in a separate calendar visible only to authorized staff. Filter entries by type, add optional private notes, and use 15-minute time choices; existing entries at other times remain editable.
+- **Personal tasks:** Each authorized staff user can enable their own task sidebar under **CommonCalendar > Settings > My tasks**. The setting is off by default and affects only that account. Once enabled, toggle the sidebar under **CommonCalendar > My tasks**, on the staff calendar, or in the staff app. Add notes, a due date, and multiple events, and mark tasks complete. Tasks are private to the account; disabling the sidebar hides it without deleting tasks. Deleted events are no longer available to attach.
 - **Staff controls:** Authorized staff can add, edit, and delete entries from the calendar or dashboard. Event, room-booking, and staff-entry creation or editing requires staff initials; the most recent initials are visible only to staff. Public room requests do not require initials.
 - **Staff dashboard:** The Home page summarizes upcoming events, room requests, active rooms, and staff entries, including today's remaining and in-progress items. **Rooms & Events** shows the room calendar alongside upcoming events.
 
@@ -104,14 +105,28 @@ Add these to a page, post, or shortcode block:
 | `[calendar_rooms]` | Room bookings and upcoming published events. Private bookings and event-linked room reservations are not shown as separate room entries. |
 | `[calendar_combined]` | Combined events and public room bookings calendar. |
 | `[calendar_staff_calendar]` | Staff-only monthly calendar. Visitors without staff access cannot view schedule details. |
+| `[calendar_staff_app]` | Dedicated installable staff and room calendar app page; see [Staff calendar app](#staff-calendar-app). |
 | `[calendar_system]` | Unified calendar, upcoming event listings, and registration forms. |
 | `[calendar_room_request]` | Public study-room request form. |
 
 Use only one calendar shortcode on a page. The calendar subscription URL is available on the public calendar and under **Settings > Calendar shortcodes**.
 
+## Staff calendar app
+
+The staff app is an online-only progressive web app (PWA). It provides the existing staff and room calendars without the WordPress dashboard or site navigation. The room calendar also shows published events, just like `[calendar_rooms]`. Bookings, permissions, and settings remain in WordPress.
+
+1. Install or update the plugin, then confirm the website uses HTTPS and WordPress **Settings > Permalinks** uses a permalink structure that gives pages trailing-slash URLs (such as **Post name**).
+2. Create and publish a new, public, non-password-protected page, not the site home page. Put `[calendar_staff_app]` on that page by itself. Use a dedicated page that is not a parent of other pages. Do not put other content or calendar shortcodes on it: the app replaces the page's normal theme and content.
+3. Open the published page on each device and sign in with a WordPress account that has `manage_calendar_system` access. Visitors without access cannot open either calendar in the app. Exclude the app page and its query-string URLs from any page, host, or CDN cache.
+4. On iPhone or iPad, open the app page in Safari, tap **Share**, then **Add to Home Screen**. On Android, open it in Chrome and use the browser menu's **Install app** or **Add to Home screen**. Desktop Chrome or Edge may offer **Install app** in the address bar or browser menu. Browser wording varies.
+
+Open the installed icon to use the app. It requires an internet connection and a working WordPress site; it does not store staff or room calendar data for offline use. If offline, it displays a connection message rather than accepting bookings. Staff can sign out from the calendar; WordPress sessions and permissions still apply.
+
 ## Privacy considerations
 
 An anonymized future reservation still occupies its room or event place; staff should cancel it separately if the person wants to free that place. Export and erasure cannot identify personal information entered in another person's free-text responses or remove information from emails, backups, logs, or other plugins. Review the site's privacy policy and retention requirements before enabling automatic cleanup.
+
+Personal tasks and their notes are included in WordPress personal data exports and erasure requests for the account email. The automatic booking and registration retention cleanup does not remove tasks.
 
 When room bookings are hidden from logged-out visitors, signed-in users can still see public bookings, and room requests and availability checks continue to work. Clear any page or CDN caches after changing this setting.
 

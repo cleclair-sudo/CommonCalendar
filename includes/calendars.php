@@ -1119,6 +1119,7 @@ function calsys_staff_calendar_shortcode() {
     return '<div class="calsys-calendar-widget calsys-calendar-widget-staff">' .
         calsys_public_notice(true) .
         calsys_staff_access_link('staff') .
+        calsys_render_tasks() .
         calsys_render_calendar(__('Staff calendar', 'community-calendar-study-rooms'), $entries, $month, 'staff') .
         calsys_front_staff_form() .
         '</div>';

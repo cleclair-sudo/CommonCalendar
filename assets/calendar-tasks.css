@@ -1,0 +1,116 @@
+.calsys-task-sidebar {
+    bottom: 1rem;
+    position: fixed;
+    right: 1rem;
+    z-index: 9999;
+}
+
+.calsys-task-sidebar[open] {
+    width: min(26rem, calc(100vw - 2rem));
+}
+
+.calsys-task-sidebar > summary {
+    background: #175c66;
+    border: 1px solid #175c66;
+    border-radius: .4rem;
+    color: #fff;
+    cursor: pointer;
+    display: block;
+    font-weight: 600;
+    list-style: none;
+    padding: .7rem 1rem;
+}
+
+.calsys-task-sidebar > summary::-webkit-details-marker {
+    display: none;
+}
+
+.calsys-task-sidebar > summary::after {
+    content: ' +';
+}
+
+.calsys-task-sidebar[open] > summary::after {
+    content: ' −';
+}
+
+.calsys-task-sidebar > summary:focus-visible {
+    outline: 3px solid #f0ad4e;
+    outline-offset: 2px;
+}
+
+.calsys-tasks {
+    background: #fff;
+    border: 1px solid #d7dce2;
+    border-radius: .5rem;
+    box-sizing: border-box;
+    box-shadow: 0 .25rem 1rem rgba(0, 0, 0, .15);
+    color: #1f2933;
+    margin: .5rem 0 0;
+    max-height: calc(100vh - 7rem);
+    max-height: calc(100dvh - 7rem);
+    overflow-y: auto;
+    padding: 1rem;
+}
+
+.calsys-tasks h2 {
+    margin: 0 0 .75rem;
+}
+
+.calsys-tasks button,
+.calsys-tasks summary {
+    cursor: pointer;
+}
+
+.calsys-task,
+.calsys-task-add {
+    border-top: 1px solid #d7dce2;
+    margin-top: .75rem;
+    padding-top: .75rem;
+}
+
+.calsys-task-heading {
+    align-items: center;
+    display: flex;
+    gap: .5rem;
+}
+
+.calsys-task-done strong {
+    text-decoration: line-through;
+}
+
+.calsys-task p {
+    margin: .4rem 0;
+}
+
+.calsys-task-notes {
+    white-space: pre-wrap;
+}
+
+.calsys-task-form {
+    display: grid;
+    gap: .6rem;
+    margin: .75rem 0;
+}
+
+.calsys-task-form label {
+    display: grid;
+    gap: .25rem;
+}
+
+.calsys-task-form input,
+.calsys-task-form select,
+.calsys-task-form textarea {
+    box-sizing: border-box;
+    max-width: 100%;
+    width: 100%;
+}
+
+.calsys-task-form button {
+    justify-self: start;
+}
+
+@media print {
+    .calsys-task-sidebar {
+        display: none;
+    }
+}

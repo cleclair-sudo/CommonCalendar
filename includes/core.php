@@ -150,7 +150,19 @@ function calsys_activate() {
         KEY availability (equipment_id, status, starts_at, ends_at)
     ) $collate;");
 
-    foreach (array('equipment', 'equipment_reservations', 'waitlist', 'series') as $table_name) {
+    dbDelta("CREATE TABLE " . calsys_table('tasks') . " (
+        id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+        user_id bigint(20) unsigned NOT NULL,
+        title varchar(200) NOT NULL,
+        notes text NOT NULL,
+        due_date date NULL,
+        event_ids longtext NOT NULL,
+        completed tinyint(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY  (id),
+        KEY user_tasks (user_id, completed, due_date)
+    ) $collate;");
+
+    foreach (array('equipment', 'equipment_reservations', 'waitlist', 'series', 'tasks') as $table_name) {
         $table = calsys_table($table_name);
         $found = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $wpdb->esc_like($table)));
         if ($found !== $table || $wpdb->last_error) {

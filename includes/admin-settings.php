@@ -183,6 +183,14 @@ function calsys_admin_menu() {
         'calsys_admin_staff_calendar_page'
     );
     add_submenu_page(
+        calsys_tasks_enabled() ? 'calsys-home' : null,
+        __('My tasks', 'community-calendar-study-rooms'),
+        __('My tasks', 'community-calendar-study-rooms'),
+        'manage_calendar_system',
+        'calsys-tasks',
+        'calsys_admin_tasks_page'
+    );
+    add_submenu_page(
         'calsys-home',
         __('Settings', 'community-calendar-study-rooms'),
         __('Settings', 'community-calendar-study-rooms'),
@@ -223,6 +231,7 @@ function calsys_admin_settings_page() {
         <h1><?php esc_html_e('Calendar settings', 'community-calendar-study-rooms'); ?></h1>
         <p class="calsys-admin-intro"><?php esc_html_e('Manage calendars, rooms, registration forms, booking rules, and what visitors can see. Changes take effect when you save.', 'community-calendar-study-rooms'); ?></p>
         <nav class="calsys-settings-nav" aria-label="<?php esc_attr_e('Settings sections', 'community-calendar-study-rooms'); ?>">
+            <a href="#calsys-settings-my-tasks"><?php esc_html_e('My tasks', 'community-calendar-study-rooms'); ?></a>
             <a href="#calsys-settings-event-emails"><?php esc_html_e('Event emails', 'community-calendar-study-rooms'); ?></a>
             <a href="#calsys-settings-calendars"><?php esc_html_e('Calendars', 'community-calendar-study-rooms'); ?></a>
             <a href="#calsys-settings-bookings"><?php esc_html_e('Bookings', 'community-calendar-study-rooms'); ?></a>
@@ -236,6 +245,7 @@ function calsys_admin_settings_page() {
             <a href="#calsys-settings-rooms"><?php esc_html_e('Rooms', 'community-calendar-study-rooms'); ?></a>
             <a href="#calsys-settings-equipment"><?php esc_html_e('Equipment', 'community-calendar-study-rooms'); ?></a>
         </nav>
+        <?php calsys_task_settings_panel(); ?>
         <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>">
             <?php wp_nonce_field('calsys_save_settings'); ?>
             <input type="hidden" name="action" value="calsys_save_settings">
